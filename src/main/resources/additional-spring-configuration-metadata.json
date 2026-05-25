@@ -1,0 +1,21 @@
+{
+  "properties": [
+    {
+      "name": "app.upload-dir",
+      "type": "java.lang.String",
+      "description": "本地上传文件存储目录（相对或绝对路径）",
+      "defaultValue": "./uploads"
+    },
+    {
+      "name": "app.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT HS256 密钥（生产务必外置注入，长度建议 >= 32 bytes）"
+    },
+    {
+      "name": "app.jwt.expire-millis",
+      "type": "java.lang.Long",
+      "description": "JWT 过期时间（毫秒）",
+      "defaultValue": 604800000
+    }
+  ]
+}
