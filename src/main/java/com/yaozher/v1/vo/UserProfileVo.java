@@ -13,7 +13,16 @@ public class UserProfileVo {
 
     private Long id;
 
+    private String username;
+
+    private String nickname;
+
     private String avatar;
 
+    private String role;
+
+    /**
+     * LED 配置（JSON字符串）
+     */
     private String ledConfig;
 }
