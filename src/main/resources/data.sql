@@ -2,23 +2,27 @@ SET NAMES utf8mb4;
 
 -- mock BCrypt (示例hash；用于本地初始化演示)
 -- 常见格式: $2a$10$...
-SET @mock_bcrypt = '$2a$10$7aQ3x9ZQxWm3kW8d8g5Q6O6r2oH4QxB7p8s3fDg3u6y2xVxq1y3e';
+SET @mock_bcrypt = '$2a$10$7aQ3x9ZQxWm3kW8d8g5Q6O6r2oH4QxB7p8s3fDg3u6y2xVxq1y3e2';
 
 -- 123456 的 BCrypt（用 BCryptPasswordEncoder 生成）
 SET @bcrypt_123456 = '$2a$10$Bgq8cZ8eBSWZ5u7hFcRYPuxOZ4CDyabnMRjXaLwvVpsYxvYiQIk8e';
 
 -- 1) 用户
+-- 头像以用户 id 命名：/avatars/{id}.png（id 由自增生成，这里先插空，后续用 UPDATE 回填）
 INSERT INTO sys_user (username, password, nickname, avatar, led_config, role)
 VALUES
-('chen_ziyao', @bcrypt_123456, '陈子尧', 'https://example.com/avatar/admin.png',
+('chen_ziyao', @bcrypt_123456, '陈子尧', NULL,
  JSON_OBJECT('theme','dark','glow',true,'color','#00e5ff','intensity',0.85),
  'ADMIN');
 
 INSERT INTO sys_user (username, password, nickname, avatar, led_config, role)
 VALUES
-('peer_user', @bcrypt_123456, '蒋芸瑶', 'https://example.com/avatar/peer.png',
+('peer_user', @bcrypt_123456, '蒋芸瑶', NULL,
  JSON_OBJECT('theme','dark','glow',true,'color','#ff4dff','intensity',0.65),
  'USER');
+
+-- 回填头像地址（以 id 命名）
+UPDATE sys_user SET avatar = CONCAT('/avatars/', id, '.png') WHERE avatar IS NULL;
 
 -- 2) 技能机器人
 INSERT INTO sys_skill_bot (bot_name, description, trigger_keyword)

@@ -3,6 +3,7 @@ package com.yaozher.v1.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
+import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -16,12 +17,22 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
+        // uploads
         String uploadDir = appProperties.getUploadDir();
-        if (uploadDir == null || uploadDir.isBlank()) {
+        if (!StringUtils.hasText(uploadDir)) {
             uploadDir = "./uploads";
         }
-        String location = Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
+        String uploadLocation = Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(location);
+                .addResourceLocations(uploadLocation);
+
+        // avatars
+        String avatarDir = appProperties.getAvatarDir();
+        if (!StringUtils.hasText(avatarDir)) {
+            avatarDir = "./avatars";
+        }
+        String avatarLocation = Paths.get(avatarDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/avatars/**")
+                .addResourceLocations(avatarLocation);
     }
 }

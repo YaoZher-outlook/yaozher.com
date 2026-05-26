@@ -15,6 +15,16 @@ public class AppProperties {
     private String uploadDir;
 
     /**
+     * 头像文件存储目录（本地目录，不是数据库 schema）
+     */
+    private String avatarDir = "./avatars";
+
+    /**
+     * 头像访问 URL 前缀
+     */
+    private String avatarUrlPrefix = "/avatars/";
+
+    /**
      * JWT 密钥（生产务必外置）
      */
     private Jwt jwt = new Jwt();
