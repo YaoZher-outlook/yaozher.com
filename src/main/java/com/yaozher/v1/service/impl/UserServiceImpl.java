@@ -31,7 +31,10 @@ public class UserServiceImpl implements UserService {
         }
         return UserProfileVo.builder()
                 .id(user.getId())
+                .username(user.getUsername())
+                .nickname(user.getNickname())
                 .avatar(user.getAvatar())
+                .role(user.getRole())
                 .ledConfig(user.getLedConfig())
                 .build();
     }
