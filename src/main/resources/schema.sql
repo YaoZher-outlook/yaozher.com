@@ -35,10 +35,12 @@ CREATE TABLE biz_news (
   title       VARCHAR(200) NOT NULL COMMENT '标题',
   content     MEDIUMTEXT   NOT NULL COMMENT '内容',
   cover_image VARCHAR(512) NULL COMMENT '封面图URL',
+  type        VARCHAR(16)  NOT NULL DEFAULT '日常' COMMENT '分类: 更新/公告/日常',
   create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   view_count  BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览次数',
   PRIMARY KEY (id),
-  KEY idx_biz_news_create_time (create_time)
+  KEY idx_biz_news_create_time (create_time),
+  KEY idx_biz_news_type (type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='新闻/动态表';
 
 CREATE TABLE biz_project (

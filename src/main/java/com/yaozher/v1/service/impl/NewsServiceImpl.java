@@ -9,6 +9,7 @@ import com.yaozher.v1.service.NewsService;
 import com.yaozher.v1.vo.PageResultVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -19,16 +20,28 @@ public class NewsServiceImpl implements NewsService {
     private final BizNewsMapper newsMapper;
 
     @Override
-    public PageResultVo<NewsDto> list(long page, long size) {
+    public PageResultVo<NewsDto> list(long page, long size, String keyword, String type) {
         Page<BizNews> p = new Page<>(page, size);
-        Page<BizNews> result = newsMapper.selectPage(p, new LambdaQueryWrapper<BizNews>()
-                .orderByDesc(BizNews::getCreateTime));
+
+        LambdaQueryWrapper<BizNews> qw = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(keyword)) {
+            qw.and(w -> w.like(BizNews::getTitle, keyword)
+                    .or()
+                    .like(BizNews::getContent, keyword));
+        }
+        if (StringUtils.hasText(type)) {
+            qw.eq(BizNews::getType, type);
+        }
+        qw.orderByDesc(BizNews::getCreateTime);
+
+        Page<BizNews> result = newsMapper.selectPage(p, qw);
 
         List<NewsDto> dtos = result.getRecords().stream()
                 .map(n -> NewsDto.builder()
                         .id(n.getId())
                         .title(n.getTitle())
                         .coverImage(n.getCoverImage())
+                        .type(n.getType())
                         .createTime(n.getCreateTime())
                         .viewCount(n.getViewCount())
                         .build())

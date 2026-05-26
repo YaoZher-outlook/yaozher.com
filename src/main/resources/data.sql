@@ -2,7 +2,7 @@ SET NAMES utf8mb4;
 
 -- mock BCrypt (示例hash；用于本地初始化演示)
 -- 常见格式: $2a$10$...
-SET @mock_bcrypt = '$2a$10$7aQ3x9ZQxWm3kW8d8g5Q6O6r2oH4QxB7p8s3fDg3u6y2xVxq1y3e2';
+SET @mock_bcrypt = '$2a$10$7aQ3x9ZQxWm3kW8d8g5Q6O6r2oH4QxB7p8s3fDg3u6y2xVxq1y3e';
 
 -- 123456 的 BCrypt（用 BCryptPasswordEncoder 生成）
 SET @bcrypt_123456 = '$2a$10$Bgq8cZ8eBSWZ5u7hFcRYPuxOZ4CDyabnMRjXaLwvVpsYxvYiQIk8e';
@@ -42,7 +42,7 @@ VALUES
  2);
 
 -- 4) 新闻
-INSERT INTO biz_news (title, content, cover_image, create_time, view_count)
+INSERT INTO biz_news (title, content, cover_image, type, create_time, view_count)
 VALUES
-('站点上线：Dark Mode + LED Glow', '个人网站V1版本上线，后端采用Spring Boot 3.x + MyBatis。', 'https://example.com/news/n1.png', NOW(), 12),
-('新增：WebSocket 技能机器人', '增加技能机器人策略路由，支持 Algorithm/Math 等关键字触发。', 'https://example.com/news/n2.png', NOW(), 5);
+('站点上线：Dark Mode + LED Glow', '个人网站V1版本上线，后端采用Spring Boot 3.x + MyBatis。', 'https://example.com/news/n1.png', '公告', NOW(), 12),
+('新增：WebSocket 技能机器人', '增加技能机器人策略路由，支持 Algorithm/Math 等关键字触发。', 'https://example.com/news/n2.png', '更新', NOW(), 5);

@@ -19,6 +19,11 @@ public class NewsDto {
 
     private String coverImage;
 
+    /**
+     * 分类：更新/公告/日常
+     */
+    private String type;
+
     private LocalDateTime createTime;
 
     private Long viewCount;

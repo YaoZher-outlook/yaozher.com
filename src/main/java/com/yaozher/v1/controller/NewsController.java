@@ -20,8 +20,10 @@ public class NewsController {
     @GetMapping("/list")
     public Result<PageResultVo<NewsDto>> list(
             @RequestParam(defaultValue = "1") long page,
-            @RequestParam(defaultValue = "10") long size
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String type
     ) {
-        return Result.ok(newsService.list(page, size));
+        return Result.ok(newsService.list(page, size, keyword, type));
     }
 }
