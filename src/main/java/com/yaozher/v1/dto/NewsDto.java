@@ -25,6 +25,4 @@ public class NewsDto {
     private String type;
 
     private LocalDateTime createTime;
-
-    private Long viewCount;
 }

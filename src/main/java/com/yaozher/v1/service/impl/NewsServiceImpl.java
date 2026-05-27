@@ -43,7 +43,6 @@ public class NewsServiceImpl implements NewsService {
                         .coverImage(n.getCoverImage())
                         .type(n.getType())
                         .createTime(n.getCreateTime())
-                        .viewCount(n.getViewCount())
                         .build())
                 .toList();
 
