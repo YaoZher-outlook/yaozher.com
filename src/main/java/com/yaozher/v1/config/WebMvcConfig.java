@@ -34,5 +34,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
         String avatarLocation = Paths.get(avatarDir).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/avatars/**")
                 .addResourceLocations(avatarLocation);
+
+        // news images
+        String newsImageDir = appProperties.getNewsImageDir();
+        if (!StringUtils.hasText(newsImageDir)) {
+            newsImageDir = "./news-images";
+        }
+        String newsImageLocation = Paths.get(newsImageDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/news-images/**")
+                .addResourceLocations(newsImageLocation);
     }
 }

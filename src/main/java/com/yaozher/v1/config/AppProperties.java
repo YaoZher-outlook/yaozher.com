@@ -25,6 +25,16 @@ public class AppProperties {
     private String avatarUrlPrefix = "/avatars/";
 
     /**
+     * 新闻图片存储目录（本地目录）
+     */
+    private String newsImageDir = "./news-images";
+
+    /**
+     * 新闻图片访问 URL 前缀
+     */
+    private String newsImageUrlPrefix = "/news-images/";
+
+    /**
      * JWT 密钥（生产务必外置）
      */
     private Jwt jwt = new Jwt();

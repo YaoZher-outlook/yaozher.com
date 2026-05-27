@@ -19,6 +19,18 @@
       "defaultValue": "/avatars/"
     },
     {
+      "name": "app.news-image-dir",
+      "type": "java.lang.String",
+      "description": "本地新闻图片存储目录（相对或绝对路径）",
+      "defaultValue": "./news-images"
+    },
+    {
+      "name": "app.news-image-url-prefix",
+      "type": "java.lang.String",
+      "description": "新闻图片访问 URL 前缀",
+      "defaultValue": "/news-images/"
+    },
+    {
       "name": "app.jwt.secret",
       "type": "java.lang.String",
       "description": "JWT HS256 密钥（生产务必外置注入，长度建议 >= 32 bytes）"
