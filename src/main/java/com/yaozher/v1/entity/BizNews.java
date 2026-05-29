@@ -32,4 +32,6 @@ public class BizNews {
     private String type;
 
     private LocalDateTime createTime;
+
+    private Long viewCount;
 }

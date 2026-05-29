@@ -1,11 +1,14 @@
 package com.yaozher.v1.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yaozher.v1.config.AppProperties;
 import com.yaozher.v1.entity.SysSkillBot;
 import com.yaozher.v1.mapper.SysSkillBotMapper;
 import com.yaozher.v1.service.ChatMessageService;
 import com.yaozher.v1.strategy.SkillBotStrategy;
 import com.yaozher.v1.strategy.SkillBotStrategyFactory;
+import com.yaozher.v1.utils.JwtUtils;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
@@ -17,6 +20,8 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -24,27 +29,32 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class ChatWebSocketHandler extends TextWebSocketHandler {
 
+    private static final String ATTR_USER_ID = "userId";
+
     private final ObjectMapper objectMapper;
     private final WebSocketSessionManager sessionManager;
     private final SysSkillBotMapper skillBotMapper;
     private final SkillBotStrategyFactory strategyFactory;
     private final ChatMessageService chatMessageService;
+    private final AppProperties appProperties;
 
     @Override
-    public void afterConnectionEstablished(@NonNull WebSocketSession session) {
-        // 简化：通过 query param 传 userId，例如 ws://host/ws/chat?userId=1
-        String userId = getQueryParam(session, "userId");
+    public void afterConnectionEstablished(@NonNull WebSocketSession session) throws Exception {
+        String userId = resolveUserIdFromToken(session);
         if (!StringUtils.hasText(userId)) {
-            log.warn("WS connect missing userId, session={}", session.getId());
+            log.warn("WS connect rejected: missing or invalid token, session={}", session.getId());
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Unauthorized"));
             return;
         }
+        session.getAttributes().put(ATTR_USER_ID, userId);
         sessionManager.put(userId, session);
     }
 
     @Override
     protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) throws Exception {
-        String senderIdStr = getQueryParam(session, "userId");
+        String senderIdStr = (String) session.getAttributes().get(ATTR_USER_ID);
         if (!StringUtils.hasText(senderIdStr)) {
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Unauthorized"));
             return;
         }
 
@@ -57,12 +67,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         Long senderId = safeToLong(senderIdStr);
         Long receiverId = safeToLong(receiverIdStr);
 
-        // 先异步落库：用户 -> 接收方
         if (senderId != null && receiverId != null) {
             chatMessageService.saveAsync(senderId, receiverId, inbound);
         }
 
-        // 1) 如果 receiverId 对应在线用户，直接转发
         WebSocketSession receiverSession = sessionManager.get(receiverIdStr);
         if (receiverSession != null && receiverSession.isOpen()) {
             ChatOutboundMessage outbound = ChatOutboundMessage.builder()
@@ -73,18 +81,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     .fileUrl(inbound.getFileUrl())
                     .createTime(LocalDateTime.now())
                     .build();
-            String json = objectMapper.writeValueAsString(outbound);
-            receiverSession.sendMessage(new TextMessage(json == null ? "" : json));
+            receiverSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(outbound)));
             return;
         }
 
-        // 2) 否则尝试当作 bot：查 sys_skill_bot
         if (receiverId == null) {
             return;
         }
         SysSkillBot bot = skillBotMapper.selectById(receiverId);
         if (bot == null) {
-            // 接收方既不在线也不是bot：略过（可在 Step 5 改为返回错误消息）
             return;
         }
 
@@ -99,11 +104,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 .createTime(LocalDateTime.now())
                 .build();
 
-        // bot -> sender：回写到当前 session
-        String replyJson = objectMapper.writeValueAsString(botReply);
-        session.sendMessage(new TextMessage(replyJson == null ? "" : replyJson));
+        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(botReply)));
 
-        // bot 回复也异步落库
         if (senderId != null && bot.getId() != null) {
             ChatInboundMessage fakeInbound = ChatInboundMessage.builder()
                     .receiverId(senderIdStr)
@@ -116,25 +118,42 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
-        String userId = getQueryParam(session, "userId");
-        if (StringUtils.hasText(userId)) {
-            sessionManager.remove(userId);
+        Object userId = session.getAttributes().get(ATTR_USER_ID);
+        if (userId instanceof String s && StringUtils.hasText(s)) {
+            sessionManager.remove(s);
+        }
+    }
+
+    private String resolveUserIdFromToken(WebSocketSession session) {
+        String token = getQueryParam(session, "token");
+        if (!StringUtils.hasText(token)) {
+            return null;
+        }
+        try {
+            String secret = appProperties.getJwt() == null || appProperties.getJwt().getSecret() == null
+                    ? JwtUtils.DEFAULT_SECRET
+                    : appProperties.getJwt().getSecret();
+            Claims claims = JwtUtils.parseToken(token, secret);
+            if (JwtUtils.isExpired(claims)) {
+                return null;
+            }
+            Object uid = claims.get("uid");
+            return uid == null ? null : String.valueOf(uid);
+        } catch (Exception e) {
+            log.warn("WS token verify failed: {}", e.getMessage());
+            return null;
         }
     }
 
     private String getQueryParam(WebSocketSession session, String key) {
         URI uri = session.getUri();
-        if (uri == null) {
+        if (uri == null || uri.getQuery() == null) {
             return null;
         }
-        String query = uri.getQuery();
-        if (query == null) {
-            return null;
-        }
-        for (String p : query.split("&")) {
+        for (String p : uri.getQuery().split("&")) {
             String[] kv = p.split("=", 2);
             if (kv.length == 2 && key.equals(kv[0])) {
-                return kv[1];
+                return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
             }
         }
         return null;

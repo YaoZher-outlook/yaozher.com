@@ -14,6 +14,7 @@ CREATE TABLE sys_user (
   password     VARCHAR(255) NOT NULL COMMENT 'BCrypt密码',
   nickname     VARCHAR(64)  NOT NULL COMMENT '昵称',
   avatar       VARCHAR(512) NULL COMMENT '头像URL',
+  email        VARCHAR(128) NULL COMMENT '邮箱',
   led_config   JSON         NULL COMMENT 'LED效果配置(JSON)',
   role         VARCHAR(32)  NOT NULL DEFAULT 'USER' COMMENT '角色: ADMIN/USER',
   PRIMARY KEY (id),

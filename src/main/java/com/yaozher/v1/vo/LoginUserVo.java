@@ -19,5 +19,7 @@ public class LoginUserVo {
 
     private String avatar;
 
+    private String email;
+
     private String role;
 }

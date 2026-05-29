@@ -26,6 +26,8 @@ public class SysUser {
 
     private String avatar;
 
+    private String email;
+
     /**
      * JSON 字符串（后续可用 TypeHandler 映射为对象）
      */

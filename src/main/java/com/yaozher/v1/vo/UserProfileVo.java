@@ -19,6 +19,8 @@ public class UserProfileVo {
 
     private String avatar;
 
+    private String email;
+
     private String role;
 
     /**

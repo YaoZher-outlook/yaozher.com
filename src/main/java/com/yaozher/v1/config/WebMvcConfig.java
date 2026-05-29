@@ -33,7 +33,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String avatarLocation = Paths.get(avatarDir).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/avatars/**")
-                .addResourceLocations(avatarLocation);
+                .addResourceLocations(avatarLocation, "classpath:/static/avatars/");
 
         // news images
         String newsImageDir = appProperties.getNewsImageDir();
@@ -42,6 +42,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String newsImageLocation = Paths.get(newsImageDir).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/news-images/**")
-                .addResourceLocations(newsImageLocation);
+                .addResourceLocations(newsImageLocation, "classpath:/static/news-images/");
     }
 }

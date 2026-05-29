@@ -40,9 +40,11 @@ public class NewsServiceImpl implements NewsService {
                 .map(n -> NewsDto.builder()
                         .id(n.getId())
                         .title(n.getTitle())
+                        .content(n.getContent())
                         .coverImage(n.getCoverImage())
                         .type(n.getType())
                         .createTime(n.getCreateTime())
+                        .viewCount(n.getViewCount())
                         .build())
                 .toList();
 

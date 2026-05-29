@@ -17,6 +17,8 @@ public class NewsDto {
 
     private String title;
 
+    private String content;
+
     private String coverImage;
 
     /**
@@ -25,4 +27,6 @@ public class NewsDto {
     private String type;
 
     private LocalDateTime createTime;
+
+    private Long viewCount;
 }
