@@ -9,7 +9,7 @@ VALUES
 ('chen_ziyao', @bcrypt_123456, '陈子尧', '/avatars/1.png', 'chen_ziyao@example.com',
  JSON_OBJECT('theme','dark','glow',true,'color','#00e5ff','intensity',0.85),
  'ADMIN'),
-('peer_user', @bcrypt_123456, '蒋芸瑶', '/avatars/2.png', 'peer_user@example.com',
+('jiang_yunyao', @bcrypt_123456, '蒋芸瑶', '/avatars/2.png', 'jiang_yunyao@example.com',
  JSON_OBJECT('theme','dark','glow',true,'color','#ff4dff','intensity',0.65),
  'USER');
 

@@ -34,7 +34,10 @@ public class UserServiceImpl implements UserService {
             update.setNickname(dto.getNickname().trim());
         }
         if (dto.getAvatar() != null) {
-            update.setAvatar(dto.getAvatar().trim());
+            String avatar = dto.getAvatar().trim();
+            if (StringUtils.hasText(avatar)) {
+                update.setAvatar(avatar);
+            }
         }
         if (dto.getEmail() != null) {
             update.setEmail(dto.getEmail().trim());

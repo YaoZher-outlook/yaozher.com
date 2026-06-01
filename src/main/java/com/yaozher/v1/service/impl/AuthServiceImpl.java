@@ -3,6 +3,7 @@ package com.yaozher.v1.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yaozher.v1.config.AppProperties;
 import com.yaozher.v1.dto.LoginRequestDto;
+import com.yaozher.v1.dto.RegisterRequestDto;
 import com.yaozher.v1.entity.SysUser;
 import com.yaozher.v1.exception.BusinessException;
 import com.yaozher.v1.exception.ErrorCode;
@@ -63,5 +64,10 @@ public class AuthServiceImpl implements AuthService {
                         .role(user.getRole())
                         .build())
                 .build();
+    }
+
+    @Override
+    public void register(RegisterRequestDto dto) {
+        throw BusinessException.of(ErrorCode.BIZ_ERROR, "Register API is reserved and not implemented yet");
     }
 }

@@ -2,6 +2,7 @@ package com.yaozher.v1.controller;
 
 import com.yaozher.v1.common.Result;
 import com.yaozher.v1.dto.LoginRequestDto;
+import com.yaozher.v1.dto.RegisterRequestDto;
 import com.yaozher.v1.service.AuthService;
 import com.yaozher.v1.vo.LoginResponseVo;
 import jakarta.validation.Valid;
@@ -21,5 +22,11 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginResponseVo> login(@Valid @RequestBody LoginRequestDto dto) {
         return Result.ok(authService.login(dto));
+    }
+
+    @PostMapping("/register")
+    public Result<Void> register(@Valid @RequestBody RegisterRequestDto dto) {
+        authService.register(dto);
+        return Result.ok();
     }
 }
