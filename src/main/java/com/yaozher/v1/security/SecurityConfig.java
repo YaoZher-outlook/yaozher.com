@@ -48,6 +48,7 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/news/**",
                                 "/api/project/**",
+                                "/api/music/**",
                                 "/ws/**",
                                 "/",
                                 "/index.html",
@@ -55,7 +56,8 @@ public class SecurityConfig {
                                 "/static/**",
                                 "/uploads/**",
                                 "/avatars/**",
-                                "/news-images/**"
+                                "/news-images/**",
+                                "/music/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

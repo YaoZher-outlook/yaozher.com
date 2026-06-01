@@ -35,6 +35,16 @@ public class AppProperties {
     private String newsImageUrlPrefix = "/news-images/";
 
     /**
+     * Music library root. Direct child folders are playlists.
+     */
+    private String musicDir = "./music-library";
+
+    /**
+     * Music static URL prefix.
+     */
+    private String musicUrlPrefix = "/music/";
+
+    /**
      * JWT 密钥（生产务必外置）
      */
     private Jwt jwt = new Jwt();

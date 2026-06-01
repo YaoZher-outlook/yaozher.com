@@ -26,7 +26,11 @@ public class RegisterRequestDto {
     private String nickname;
 
     @Email(message = "email format is invalid")
+    @NotBlank(message = "email must not be blank")
     @Size(max = 128, message = "email length must be <= 128")
     private String email;
-}
 
+    @NotBlank(message = "verification code must not be blank")
+    @Size(min = 6, max = 6, message = "verification code length must be 6")
+    private String code;
+}
