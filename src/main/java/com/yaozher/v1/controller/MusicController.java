@@ -6,6 +6,7 @@ import com.yaozher.v1.vo.MusicPlaylistVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -21,5 +22,10 @@ public class MusicController {
     public Result<List<MusicPlaylistVo>> playlists() {
         return Result.ok(musicService.listPlaylists());
     }
-}
 
+    @GetMapping("/cover")
+    public Result<String> cover(@RequestParam(required = false) String artist,
+                                @RequestParam String title) {
+        return Result.ok(musicService.findOnlineCover(artist, title));
+    }
+}

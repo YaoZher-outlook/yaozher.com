@@ -20,5 +20,6 @@ public class MusicTrackVo {
     private String fileName;
 
     private String url;
-}
 
+    private String coverUrl;
+}

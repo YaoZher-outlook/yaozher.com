@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local music library
+music-library/
+
+# Local Maven repository
+.m2/

@@ -7,5 +7,6 @@ import java.util.List;
 public interface MusicService {
 
     List<MusicPlaylistVo> listPlaylists();
-}
 
+    String findOnlineCover(String artist, String title);
+}

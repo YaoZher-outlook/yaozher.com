@@ -33,4 +33,6 @@ public class RegisterRequestDto {
     @NotBlank(message = "verification code must not be blank")
     @Size(min = 6, max = 6, message = "verification code length must be 6")
     private String code;
+
+    private Boolean hr;
 }
