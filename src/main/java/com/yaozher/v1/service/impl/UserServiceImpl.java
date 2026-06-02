@@ -62,6 +62,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public String getAdminLedConfig() {
+        SysUser admin = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getRole, "ADMIN")
+                .orderByAsc(SysUser::getId)
+                .last("limit 1"));
+        return admin == null ? null : admin.getLedConfig();
+    }
+
+    @Override
     public ApiKeyStatusVo getApiKeyStatus() {
         SysUser user = getCurrentUser();
         return ApiKeyStatusVo.builder()

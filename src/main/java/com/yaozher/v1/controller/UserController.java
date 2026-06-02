@@ -28,6 +28,11 @@ public class UserController {
         return Result.ok(userService.getCurrentUserProfile());
     }
 
+    @GetMapping("/admin-config")
+    public Result<String> adminConfig() {
+        return Result.ok(userService.getAdminLedConfig());
+    }
+
     @PutMapping("/profile")
     public Result<UserProfileVo> updateProfile(@Valid @RequestBody UserProfileUpdateDto dto) {
         return Result.ok(userService.updateProfile(dto));

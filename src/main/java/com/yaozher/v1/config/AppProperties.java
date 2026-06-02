@@ -17,7 +17,7 @@ public class AppProperties {
     /**
      * 头像文件存储目录（本地目录，不是数据库 schema）
      */
-    private String avatarDir = "./avatar";
+    private String avatarDir = "./avatars";
 
     /**
      * 头像访问 URL 前缀
@@ -27,7 +27,7 @@ public class AppProperties {
     /**
      * Global background image storage directory.
      */
-    private String backgroundDir = "./background";
+    private String backgroundDir = "./backgrounds";
 
     /**
      * Global background image URL prefix.

@@ -41,8 +41,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
             backgroundDir = "./background";
         }
         String backgroundLocation = Paths.get(backgroundDir).toAbsolutePath().normalize().toUri().toString();
+        String legacyBackgroundLocation = Paths.get("./background").toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/backgrounds/**")
-                .addResourceLocations(backgroundLocation);
+                .addResourceLocations(backgroundLocation, legacyBackgroundLocation);
 
         // news images
         String newsImageDir = appProperties.getNewsImageDir();

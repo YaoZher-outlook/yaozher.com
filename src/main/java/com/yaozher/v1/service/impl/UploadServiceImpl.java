@@ -14,11 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -29,7 +31,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UploadServiceImpl implements UploadService {
 
-    private static final Set<String> IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif");
 
     private final AppProperties appProperties;
     private final SysUserMapper sysUserMapper;
@@ -38,6 +40,11 @@ public class UploadServiceImpl implements UploadService {
     public String upload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.of(ErrorCode.PARAM_ERROR, "文件不能为空");
+        }
+
+        SysUser user = getCurrentUserOrNull();
+        if (user != null && isSupportedImage(file)) {
+            return savePngImage(file, appProperties.getUploadDir(), "./uploads", user.getId() + ".png", "/uploads/");
         }
 
         String uploadDir = appProperties.getUploadDir();
@@ -70,9 +77,8 @@ public class UploadServiceImpl implements UploadService {
     @Override
     public String uploadAvatar(MultipartFile file) {
         SysUser user = getCurrentUser();
-        String filename = user.getId() + resolveImageExtension(file, "头像文件不能为空");
-        String avatarUrl = saveImage(file, appProperties.getAvatarDir(), "./avatar", filename,
-                appProperties.getAvatarUrlPrefix(), "/avatars/");
+        String avatarUrl = savePngImage(file, appProperties.getAvatarDir(), "./avatars", user.getId() + ".png",
+                appProperties.getAvatarUrlPrefix());
         SysUser update = SysUser.builder()
                 .id(user.getId())
                 .avatar(avatarUrl)
@@ -84,19 +90,24 @@ public class UploadServiceImpl implements UploadService {
     @Override
     public String uploadBackground(MultipartFile file) {
         SysUser user = getCurrentUser();
-        String filename = "background-" + user.getId() + resolveImageExtension(file, "背景图片不能为空");
-        return saveImage(file, appProperties.getBackgroundDir(), "./background", filename,
-                appProperties.getBackgroundUrlPrefix(), "/backgrounds/");
+        return savePngImage(file, appProperties.getBackgroundDir(), "./backgrounds", user.getId() + ".png",
+                appProperties.getBackgroundUrlPrefix());
     }
 
-    private String saveImage(
+    private String savePngImage(
             MultipartFile file,
             String configuredDir,
             String fallbackDir,
             String filename,
-            String configuredPrefix,
-            String fallbackPrefix
+            String configuredPrefix
     ) {
+        if (file == null || file.isEmpty()) {
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "图片不能为空");
+        }
+        if (!isSupportedImage(file)) {
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "仅支持 jpg、png、gif 图片");
+        }
+
         String dirName = StringUtils.hasText(configuredDir) ? configuredDir : fallbackDir;
         Path dir = Paths.get(dirName).toAbsolutePath().normalize();
         Path target = dir.resolve(filename).normalize();
@@ -105,14 +116,25 @@ public class UploadServiceImpl implements UploadService {
         }
 
         try {
+            BufferedImage source = ImageIO.read(file.getInputStream());
+            if (source == null) {
+                throw BusinessException.of(ErrorCode.PARAM_ERROR, "无法读取图片内容");
+            }
+            BufferedImage png = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D graphics = png.createGraphics();
+            graphics.drawImage(source, 0, 0, null);
+            graphics.dispose();
+
             Files.createDirectories(dir);
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+            ImageIO.write(png, "png", target.toFile());
+        } catch (BusinessException e) {
+            throw e;
         } catch (IOException e) {
             log.error("image upload failed", e);
             throw BusinessException.of(ErrorCode.SYSTEM_ERROR, "图片上传失败");
         }
 
-        String prefix = StringUtils.hasText(configuredPrefix) ? configuredPrefix : fallbackPrefix;
+        String prefix = StringUtils.hasText(configuredPrefix) ? configuredPrefix : "/uploads/";
         if (!prefix.endsWith("/")) {
             prefix += "/";
         }
@@ -120,41 +142,33 @@ public class UploadServiceImpl implements UploadService {
     }
 
     private SysUser getCurrentUser() {
-        String username = SecurityUtils.getCurrentUsername();
-        if (!StringUtils.hasText(username)) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
-        }
-        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getUsername, username)
-                .last("limit 1"));
+        SysUser user = getCurrentUserOrNull();
         if (user == null) {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
         }
         return user;
     }
 
-    private String resolveImageExtension(MultipartFile file, String emptyMessage) {
-        if (file == null || file.isEmpty()) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, emptyMessage);
+    private SysUser getCurrentUserOrNull() {
+        String username = SecurityUtils.getCurrentUsername();
+        if (!StringUtils.hasText(username)) {
+            return null;
         }
+        return sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUsername, username)
+                .last("limit 1"));
+    }
 
+    private boolean isSupportedImage(MultipartFile file) {
         String origin = file.getOriginalFilename();
         String ext = "";
         if (origin != null && origin.contains(".")) {
             ext = origin.substring(origin.lastIndexOf('.')).toLowerCase(Locale.ROOT);
         }
-
-        if (!StringUtils.hasText(ext)) {
-            String contentType = file.getContentType();
-            if ("image/jpeg".equalsIgnoreCase(contentType)) ext = ".jpg";
-            if ("image/png".equalsIgnoreCase(contentType)) ext = ".png";
-            if ("image/gif".equalsIgnoreCase(contentType)) ext = ".gif";
-            if ("image/webp".equalsIgnoreCase(contentType)) ext = ".webp";
-        }
-
-        if (!IMAGE_EXTENSIONS.contains(ext)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "仅支持 jpg、png、gif、webp 图片");
-        }
-        return ext;
+        String contentType = file.getContentType();
+        return IMAGE_EXTENSIONS.contains(ext)
+                || "image/jpeg".equalsIgnoreCase(contentType)
+                || "image/png".equalsIgnoreCase(contentType)
+                || "image/gif".equalsIgnoreCase(contentType);
     }
 }

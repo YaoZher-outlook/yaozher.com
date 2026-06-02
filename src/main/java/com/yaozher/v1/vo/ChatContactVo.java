@@ -15,6 +15,8 @@ public class ChatContactVo {
 
     private String type;
 
+    private String role;
+
     private String name;
 
     private String avatar;

@@ -97,15 +97,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         for (Long id : userIds) {
             SysUser user = sysUserMapper.selectById(id);
             if (user != null) {
-                contacts.add(ChatContactVo.builder()
-                        .id(String.valueOf(user.getId()))
-                        .type("USER")
-                        .name(StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername())
-                        .avatar(user.getAvatar())
-                        .description(user.getUsername())
-                        .build());
+                contacts.add(userContact(user, user.getUsername()));
             }
         }
+        contacts.addAll(botContacts());
         return contacts;
     }
 
@@ -116,27 +111,38 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .orderByAsc(SysUser::getId)
                 .last("limit 1"));
         if (admin != null) {
-            contacts.add(ChatContactVo.builder()
-                    .id(String.valueOf(admin.getId()))
-                    .type("USER")
-                    .name(StringUtils.hasText(admin.getNickname()) ? admin.getNickname() : admin.getUsername())
-                    .avatar(admin.getAvatar())
-                    .description("站点管理员")
-                    .build());
+            contacts.add(userContact(admin, "站点管理员"));
         }
+        contacts.addAll(botContacts());
+        return contacts;
+    }
 
+    private List<ChatContactVo> botContacts() {
         List<SysSkillBot> bots = skillBotMapper.selectList(new LambdaQueryWrapper<SysSkillBot>()
                 .orderByAsc(SysSkillBot::getId));
+        List<ChatContactVo> contacts = new ArrayList<>();
         for (SysSkillBot bot : bots) {
             contacts.add(ChatContactVo.builder()
                     .id(String.valueOf(-bot.getId()))
                     .type("BOT")
+                    .role("CHATBOT")
                     .name(bot.getBotName())
                     .avatar(null)
                     .description(bot.getDescription())
                     .build());
         }
         return contacts;
+    }
+
+    private ChatContactVo userContact(SysUser user, String description) {
+        return ChatContactVo.builder()
+                .id(String.valueOf(user.getId()))
+                .type("USER")
+                .role(user.getRole())
+                .name(StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername())
+                .avatar(user.getAvatar())
+                .description(description)
+                .build();
     }
 
     private void assertCanChat(SysUser current, Long peer) {

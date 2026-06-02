@@ -13,6 +13,8 @@ public interface UserService {
 
     void updateLedConfig(String ledConfig);
 
+    String getAdminLedConfig();
+
     ApiKeyStatusVo getApiKeyStatus();
 
     void updateApiKeys(ApiKeyUpdateDto dto);
