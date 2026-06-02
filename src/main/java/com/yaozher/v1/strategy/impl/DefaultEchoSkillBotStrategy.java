@@ -15,6 +15,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,19 +46,22 @@ public class DefaultEchoSkillBotStrategy implements SkillBotStrategy {
         }
 
         try {
-            String body = objectMapper.writeValueAsString(Map.of(
-                    "model", StringUtils.hasText(chatbot.getModel()) ? chatbot.getModel() : "gpt-4o-mini",
-                    "messages", List.of(
-                            Map.of(
-                                    "role", "system",
-                                    "content", "You are " + botName + ", a concise assistant for a personal website chat."
-                            ),
-                            Map.of(
-                                    "role", "user",
-                                    "content", content == null ? "" : content
-                            )
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("model", StringUtils.hasText(chatbot.getModel()) ? chatbot.getModel() : "deepseek-v4-flash");
+            requestBody.put("messages", List.of(
+                    Map.of(
+                            "role", "system",
+                            "content", "You are " + botName + ", a concise assistant for a personal website chat."
+                    ),
+                    Map.of(
+                            "role", "user",
+                            "content", content == null ? "" : content
                     )
             ));
+            if (chatbot.getApiUrl().contains("deepseek.com")) {
+                requestBody.put("thinking", Map.of("type", "disabled"));
+            }
+            String body = objectMapper.writeValueAsString(requestBody);
 
             int timeout = chatbot.getTimeoutSeconds() == null ? 20 : Math.max(5, chatbot.getTimeoutSeconds());
             HttpRequest request = HttpRequest.newBuilder(URI.create(chatbot.getApiUrl()))
@@ -66,7 +70,10 @@ public class DefaultEchoSkillBotStrategy implements SkillBotStrategy {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
-            HttpResponse<String> response = HttpClient.newHttpClient()
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(timeout))
+                    .build();
+            HttpResponse<String> response = client
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {

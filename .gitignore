@@ -35,5 +35,21 @@ build/
 # Local music library
 music-library/
 
+# Runtime image/media uploads
+uploads/
+avatar/
+avatars/
+background/
+backgrounds/
+news-images/
+
+# Bundled static image folders; keep folder placeholders only.
+src/main/resources/static/avatars/*
+!src/main/resources/static/avatars/.gitkeep
+src/main/resources/static/news-images/*
+!src/main/resources/static/news-images/.gitkeep
+src/main/resources/static/backgrounds/*
+!src/main/resources/static/backgrounds/.gitkeep
+
 # Local Maven repository
 .m2/

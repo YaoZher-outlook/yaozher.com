@@ -78,8 +78,8 @@ public class AppProperties {
 
     @Data
     public static class Chatbot {
-        private String apiUrl = "https://api.openai.com/v1/chat/completions";
-        private String model = "gpt-4o-mini";
+        private String apiUrl = "https://api.deepseek.com/chat/completions";
+        private String model = "deepseek-v4-flash";
         private Integer timeoutSeconds = 20;
     }
 }
