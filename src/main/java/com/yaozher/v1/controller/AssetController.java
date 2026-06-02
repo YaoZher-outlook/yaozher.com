@@ -4,6 +4,7 @@ import com.yaozher.v1.common.Result;
 import com.yaozher.v1.config.AppProperties;
 import com.yaozher.v1.vo.AssetOptionVo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,12 +21,13 @@ import java.util.Locale;
 @RestController
 @RequestMapping("/api/assets")
 @RequiredArgsConstructor
+@Slf4j
 public class AssetController {
 
     private final AppProperties appProperties;
 
     @GetMapping("/background-presets")
-    public Result<List<AssetOptionVo>> backgroundPresets() throws IOException {
+    public Result<List<AssetOptionVo>> backgroundPresets() {
         String configuredDir = appProperties.getBackgroundPresetDir();
         String configuredPrefix = appProperties.getBackgroundPresetUrlPrefix();
         Path dir = Paths.get(StringUtils.hasText(configuredDir) ? configuredDir : "./storage/assets/background-presets")
@@ -35,14 +37,13 @@ public class AssetController {
         if (!prefix.endsWith("/")) {
             prefix += "/";
         }
-        if (!Files.exists(dir)) {
+        if (!Files.isDirectory(dir)) {
             return Result.ok(List.of());
         }
 
         String urlPrefix = prefix;
-        List<AssetOptionVo> options;
         try (var stream = Files.list(dir)) {
-            options = stream
+            List<AssetOptionVo> options = stream
                     .filter(Files::isRegularFile)
                     .filter(this::isImage)
                     .sorted(Comparator.comparing(p -> p.getFileName().toString()))
@@ -54,8 +55,11 @@ public class AssetController {
                                 .build();
                     })
                     .toList();
+            return Result.ok(options);
+        } catch (IOException e) {
+            log.warn("failed to list background presets from {}", dir, e);
+            return Result.ok(List.of());
         }
-        return Result.ok(options);
     }
 
     private boolean isImage(Path path) {

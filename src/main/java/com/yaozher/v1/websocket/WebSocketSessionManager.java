@@ -28,4 +28,11 @@ public class WebSocketSessionManager {
             log.info("WS session removed: userId={}, sessionId={}", userId, s.getId());
         }
     }
+
+    public void remove(String userId, WebSocketSession session) {
+        boolean removed = sessions.remove(userId, session);
+        if (removed) {
+            log.info("WS session removed: userId={}, sessionId={}", userId, session.getId());
+        }
+    }
 }

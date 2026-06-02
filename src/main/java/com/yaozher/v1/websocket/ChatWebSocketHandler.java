@@ -136,7 +136,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         Object userId = session.getAttributes().get(ATTR_USER_ID);
         if (userId instanceof String s && StringUtils.hasText(s)) {
-            sessionManager.remove(s);
+            sessionManager.remove(s, session);
         }
     }
 

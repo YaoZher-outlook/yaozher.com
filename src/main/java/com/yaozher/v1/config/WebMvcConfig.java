@@ -22,7 +22,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(uploadDir)) {
             uploadDir = "./uploads";
         }
-        String uploadLocation = Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
+        String uploadLocation = fileLocation(uploadDir);
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations(uploadLocation);
 
@@ -31,7 +31,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(avatarDir)) {
             avatarDir = "./avatars";
         }
-        String avatarLocation = Paths.get(avatarDir).toAbsolutePath().normalize().toUri().toString();
+        String avatarLocation = fileLocation(avatarDir);
         registry.addResourceHandler("/avatars/**")
                 .addResourceLocations(avatarLocation, "classpath:/static/avatars/");
 
@@ -40,8 +40,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(backgroundDir)) {
             backgroundDir = "./background";
         }
-        String backgroundLocation = Paths.get(backgroundDir).toAbsolutePath().normalize().toUri().toString();
-        String legacyBackgroundLocation = Paths.get("./background").toAbsolutePath().normalize().toUri().toString();
+        String backgroundLocation = fileLocation(backgroundDir);
+        String legacyBackgroundLocation = fileLocation("./background");
         registry.addResourceHandler("/backgrounds/**")
                 .addResourceLocations(backgroundLocation, legacyBackgroundLocation);
 
@@ -49,7 +49,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(backgroundPresetDir)) {
             backgroundPresetDir = "./storage/assets/background-presets";
         }
-        String backgroundPresetLocation = Paths.get(backgroundPresetDir).toAbsolutePath().normalize().toUri().toString();
+        String backgroundPresetLocation = fileLocation(backgroundPresetDir);
         registry.addResourceHandler("/background-presets/**")
                 .addResourceLocations(backgroundPresetLocation);
 
@@ -58,7 +58,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(newsImageDir)) {
             newsImageDir = "./news-images";
         }
-        String newsImageLocation = Paths.get(newsImageDir).toAbsolutePath().normalize().toUri().toString();
+        String newsImageLocation = fileLocation(newsImageDir);
         registry.addResourceHandler("/news-images/**")
                 .addResourceLocations(newsImageLocation, "classpath:/static/news-images/");
 
@@ -66,8 +66,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(projectCoverDir)) {
             projectCoverDir = "./storage/assets/cover-images";
         }
-        String projectCoverLocation = Paths.get(projectCoverDir).toAbsolutePath().normalize().toUri().toString();
-        String legacyProjectCoverLocation = Paths.get("./storage/assets/project-covers").toAbsolutePath().normalize().toUri().toString();
+        String projectCoverLocation = fileLocation(projectCoverDir);
+        String legacyProjectCoverLocation = fileLocation("./storage/assets/project-covers");
         registry.addResourceHandler("/cover-images/**")
                 .addResourceLocations(projectCoverLocation, "classpath:/static/cover-images/");
         registry.addResourceHandler("/project-covers/**")
@@ -77,7 +77,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(projectFileDir)) {
             projectFileDir = "./storage/assets/project-files";
         }
-        String projectFileLocation = Paths.get(projectFileDir).toAbsolutePath().normalize().toUri().toString();
+        String projectFileLocation = fileLocation(projectFileDir);
         registry.addResourceHandler("/project-files/**")
                 .addResourceLocations(projectFileLocation);
 
@@ -85,8 +85,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(musicDir)) {
             musicDir = "./music-library";
         }
-        String musicLocation = Paths.get(musicDir).toAbsolutePath().normalize().toUri().toString();
+        String musicLocation = fileLocation(musicDir);
         registry.addResourceHandler("/music/**")
                 .addResourceLocations(musicLocation);
+    }
+
+    private String fileLocation(String dir) {
+        String location = Paths.get(dir).toAbsolutePath().normalize().toUri().toString();
+        return location.endsWith("/") ? location : location + "/";
     }
 }
