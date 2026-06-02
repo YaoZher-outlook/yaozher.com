@@ -1,13 +1,17 @@
 package com.yaozher.v1.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.yaozher.v1.dto.ApiKeyUpdateDto;
 import com.yaozher.v1.dto.UserProfileUpdateDto;
 import com.yaozher.v1.entity.SysUser;
 import com.yaozher.v1.exception.BusinessException;
 import com.yaozher.v1.exception.ErrorCode;
 import com.yaozher.v1.mapper.SysUserMapper;
 import com.yaozher.v1.security.SecurityUtils;
+import com.yaozher.v1.service.ApiKeyCryptoService;
 import com.yaozher.v1.service.UserService;
+import com.yaozher.v1.vo.ApiKeyStatusVo;
 import com.yaozher.v1.vo.UserProfileVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +22,7 @@ import org.springframework.util.StringUtils;
 public class UserServiceImpl implements UserService {
 
     private final SysUserMapper sysUserMapper;
+    private final ApiKeyCryptoService apiKeyCryptoService;
 
     @Override
     public UserProfileVo getCurrentUserProfile() {
@@ -56,6 +61,46 @@ public class UserServiceImpl implements UserService {
         sysUserMapper.updateById(update);
     }
 
+    @Override
+    public ApiKeyStatusVo getApiKeyStatus() {
+        SysUser user = getCurrentUser();
+        return ApiKeyStatusVo.builder()
+                .hasApiKey(StringUtils.hasText(user.getApiKeyEncrypted()))
+                .hasAdminApiKey(StringUtils.hasText(user.getAdminApiKeyEncrypted()))
+                .hasChatbotApiKey(StringUtils.hasText(user.getChatbotApiKeyEncrypted()))
+                .build();
+    }
+
+    @Override
+    public void updateApiKeys(ApiKeyUpdateDto dto) {
+        SysUser user = getCurrentUser();
+        boolean admin = "ADMIN".equalsIgnoreCase(user.getRole());
+        if (!admin && (dto.getAdminApiKey() != null || dto.getChatbotApiKey() != null)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "Only ADMIN can update admin API keys");
+        }
+
+        LambdaUpdateWrapper<SysUser> update = new LambdaUpdateWrapper<SysUser>()
+                .eq(SysUser::getId, user.getId());
+        boolean changed = false;
+
+        if (dto.getApiKey() != null) {
+            update.set(SysUser::getApiKeyEncrypted, encryptOrNull(dto.getApiKey()));
+            changed = true;
+        }
+        if (admin && dto.getAdminApiKey() != null) {
+            update.set(SysUser::getAdminApiKeyEncrypted, encryptOrNull(dto.getAdminApiKey()));
+            changed = true;
+        }
+        if (admin && dto.getChatbotApiKey() != null) {
+            update.set(SysUser::getChatbotApiKeyEncrypted, encryptOrNull(dto.getChatbotApiKey()));
+            changed = true;
+        }
+
+        if (changed) {
+            sysUserMapper.update(null, update);
+        }
+    }
+
     private SysUser getCurrentUser() {
         String username = SecurityUtils.getCurrentUsername();
         if (!StringUtils.hasText(username)) {
@@ -68,6 +113,13 @@ public class UserServiceImpl implements UserService {
             throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
         }
         return user;
+    }
+
+    private String encryptOrNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return apiKeyCryptoService.encrypt(value.trim());
     }
 
     private UserProfileVo toProfileVo(SysUser user) {

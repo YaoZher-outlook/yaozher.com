@@ -12,5 +12,5 @@ public interface SkillBotStrategy {
     /**
      * 处理用户消息，返回机器人回复文本
      */
-    String reply(SysSkillBot bot, String content);
+    String reply(SysSkillBot bot, Long userId, String content);
 }

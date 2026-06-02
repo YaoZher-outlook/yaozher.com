@@ -35,6 +35,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/avatars/**")
                 .addResourceLocations(avatarLocation, "classpath:/static/avatars/");
 
+        // backgrounds
+        String backgroundDir = appProperties.getBackgroundDir();
+        if (!StringUtils.hasText(backgroundDir)) {
+            backgroundDir = "./background";
+        }
+        String backgroundLocation = Paths.get(backgroundDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/backgrounds/**")
+                .addResourceLocations(backgroundLocation);
+
         // news images
         String newsImageDir = appProperties.getNewsImageDir();
         if (!StringUtils.hasText(newsImageDir)) {

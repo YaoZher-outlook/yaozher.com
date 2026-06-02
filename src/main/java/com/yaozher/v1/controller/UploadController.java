@@ -20,4 +20,14 @@ public class UploadController {
     public Result<String> upload(@RequestParam("file") MultipartFile file) {
         return Result.ok(uploadService.upload(file));
     }
+
+    @PostMapping("/upload/avatar")
+    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return Result.ok(uploadService.uploadAvatar(file));
+    }
+
+    @PostMapping("/upload/background")
+    public Result<String> uploadBackground(@RequestParam("file") MultipartFile file) {
+        return Result.ok(uploadService.uploadBackground(file));
+    }
 }

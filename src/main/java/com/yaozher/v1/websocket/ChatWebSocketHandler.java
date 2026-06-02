@@ -3,7 +3,9 @@ package com.yaozher.v1.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yaozher.v1.config.AppProperties;
 import com.yaozher.v1.entity.SysSkillBot;
+import com.yaozher.v1.entity.SysUser;
 import com.yaozher.v1.mapper.SysSkillBotMapper;
+import com.yaozher.v1.mapper.SysUserMapper;
 import com.yaozher.v1.service.ChatMessageService;
 import com.yaozher.v1.strategy.SkillBotStrategy;
 import com.yaozher.v1.strategy.SkillBotStrategyFactory;
@@ -34,6 +36,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final WebSocketSessionManager sessionManager;
     private final SysSkillBotMapper skillBotMapper;
+    private final SysUserMapper sysUserMapper;
     private final SkillBotStrategyFactory strategyFactory;
     private final ChatMessageService chatMessageService;
     private final AppProperties appProperties;
@@ -66,9 +69,16 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String receiverIdStr = inbound.getReceiverId();
         Long senderId = safeToLong(senderIdStr);
         Long receiverId = safeToLong(receiverIdStr);
+        SysUser sender = senderId == null ? null : sysUserMapper.selectById(senderId);
+        if (sender == null || receiverId == null || !canSendTo(sender, receiverId)) {
+            return;
+        }
 
-        if (senderId != null && receiverId != null) {
-            chatMessageService.saveAsync(senderId, receiverId, inbound);
+        chatMessageService.saveAsync(senderId, receiverId, inbound);
+
+        if (receiverId < 0) {
+            handleBotMessage(session, senderIdStr, senderId, Math.abs(receiverId), inbound);
+            return;
         }
 
         WebSocketSession receiverSession = sessionManager.get(receiverIdStr);
@@ -85,19 +95,25 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        if (receiverId == null) {
-            return;
-        }
-        SysSkillBot bot = skillBotMapper.selectById(receiverId);
+    }
+
+    private void handleBotMessage(
+            WebSocketSession session,
+            String senderIdStr,
+            Long senderId,
+            Long botId,
+            ChatInboundMessage inbound
+    ) throws Exception {
+        SysSkillBot bot = skillBotMapper.selectById(botId);
         if (bot == null) {
             return;
         }
 
         SkillBotStrategy strategy = strategyFactory.getStrategy(bot);
-        String replyText = strategy.reply(bot, inbound.getContent());
+        String replyText = strategy.reply(bot, senderId, inbound.getContent());
 
         ChatOutboundMessage botReply = ChatOutboundMessage.builder()
-                .senderId(String.valueOf(bot.getId()))
+                .senderId(String.valueOf(-bot.getId()))
                 .receiverId(senderIdStr)
                 .type(ChatMessageType.TEXT)
                 .content(replyText)
@@ -112,7 +128,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     .content(replyText)
                     .type(ChatMessageType.TEXT)
                     .build();
-            chatMessageService.saveAsync(bot.getId(), senderId, fakeInbound);
+            chatMessageService.saveAsync(-bot.getId(), senderId, fakeInbound);
         }
     }
 
@@ -165,5 +181,19 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private boolean canSendTo(SysUser sender, Long receiverId) {
+        if (receiverId < 0) {
+            return skillBotMapper.selectById(Math.abs(receiverId)) != null;
+        }
+        SysUser receiver = sysUserMapper.selectById(receiverId);
+        if (receiver == null) {
+            return false;
+        }
+        if ("ADMIN".equalsIgnoreCase(sender.getRole())) {
+            return true;
+        }
+        return "ADMIN".equalsIgnoreCase(receiver.getRole());
     }
 }

@@ -56,6 +56,7 @@ public class SecurityConfig {
                                 "/static/**",
                                 "/uploads/**",
                                 "/avatars/**",
+                                "/backgrounds/**",
                                 "/news-images/**",
                                 "/music/**"
                         ).permitAll()

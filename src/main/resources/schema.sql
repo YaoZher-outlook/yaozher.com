@@ -16,6 +16,9 @@ CREATE TABLE sys_user (
   avatar       VARCHAR(512) NULL COMMENT '头像URL',
   email        VARCHAR(128) NULL COMMENT '邮箱',
   led_config   JSON         NULL COMMENT 'LED效果配置(JSON)',
+  api_key_encrypted TEXT NULL COMMENT '用户自己的加密API Key',
+  admin_api_key_encrypted TEXT NULL COMMENT 'ADMIN自用加密API Key',
+  chatbot_api_key_encrypted TEXT NULL COMMENT '普通用户chatbot默认加密API Key',
   role         VARCHAR(32)  NOT NULL DEFAULT 'USER' COMMENT '角色: ADMIN/USER',
   PRIMARY KEY (id),
   UNIQUE KEY uk_sys_user_username (username)

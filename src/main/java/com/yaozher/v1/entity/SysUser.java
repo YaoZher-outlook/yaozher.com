@@ -34,4 +34,10 @@ public class SysUser {
     private String ledConfig;
 
     private String role;
+
+    private String apiKeyEncrypted;
+
+    private String adminApiKeyEncrypted;
+
+    private String chatbotApiKeyEncrypted;
 }

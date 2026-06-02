@@ -1,9 +1,11 @@
 package com.yaozher.v1.controller;
 
 import com.yaozher.v1.common.Result;
+import com.yaozher.v1.dto.ApiKeyUpdateDto;
 import com.yaozher.v1.dto.LedConfigUpdateDto;
 import com.yaozher.v1.dto.UserProfileUpdateDto;
 import com.yaozher.v1.service.UserService;
+import com.yaozher.v1.vo.ApiKeyStatusVo;
 import com.yaozher.v1.vo.UserProfileVo;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,17 @@ public class UserController {
     @PostMapping("/config")
     public Result<Void> updateConfig(@Valid @RequestBody LedConfigUpdateDto dto) {
         userService.updateLedConfig(dto.getLedConfig());
+        return Result.ok();
+    }
+
+    @GetMapping("/api-key")
+    public Result<ApiKeyStatusVo> apiKeyStatus() {
+        return Result.ok(userService.getApiKeyStatus());
+    }
+
+    @PostMapping("/api-key")
+    public Result<Void> updateApiKeys(@Valid @RequestBody ApiKeyUpdateDto dto) {
+        userService.updateApiKeys(dto);
         return Result.ok();
     }
 }
