@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,6 +24,8 @@ public class UserProfileVo {
     private String email;
 
     private String role;
+
+    private LocalDateTime createTime;
 
     /**
      * LED 配置（JSON字符串）

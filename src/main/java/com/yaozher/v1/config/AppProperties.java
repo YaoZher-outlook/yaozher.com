@@ -34,6 +34,10 @@ public class AppProperties {
      */
     private String backgroundUrlPrefix = "/backgrounds/";
 
+    private String backgroundPresetDir = "./storage/assets/background-presets";
+
+    private String backgroundPresetUrlPrefix = "/background-presets/";
+
     /**
      * 新闻图片存储目录（本地目录）
      */
@@ -43,6 +47,14 @@ public class AppProperties {
      * 新闻图片访问 URL 前缀
      */
     private String newsImageUrlPrefix = "/news-images/";
+
+    private String projectCoverDir = "./storage/assets/cover-images";
+
+    private String projectCoverUrlPrefix = "/cover-images/";
+
+    private String projectFileDir = "./storage/assets/project-files";
+
+    private String projectFileUrlPrefix = "/project-files/";
 
     /**
      * Music library root. Direct child folders are playlists.

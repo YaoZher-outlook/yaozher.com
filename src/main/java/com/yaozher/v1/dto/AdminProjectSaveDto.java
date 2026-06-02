@@ -29,6 +29,8 @@ public class AdminProjectSaveDto {
     @Size(max = 512, message = "githubUrl length must be <= 512")
     private String githubUrl;
 
+    @Size(max = 32, message = "resourceType length must be <= 32")
+    private String resourceType;
+
     private Integer sortOrder;
 }
-

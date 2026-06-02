@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/user/admin-config",
+                                "/api/assets/background-presets",
                                 "/api/news/**",
                                 "/api/project/**",
                                 "/api/music/**",
@@ -58,7 +59,11 @@ public class SecurityConfig {
                                 "/uploads/**",
                                 "/avatars/**",
                                 "/backgrounds/**",
+                                "/background-presets/**",
                                 "/news-images/**",
+                                "/cover-images/**",
+                                "/project-covers/**",
+                                "/project-files/**",
                                 "/music/**"
                         ).permitAll()
                         .anyRequest().authenticated()

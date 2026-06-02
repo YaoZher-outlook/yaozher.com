@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -84,6 +85,7 @@ public class AuthServiceImpl implements AuthService {
                         .avatar(user.getAvatar())
                         .email(user.getEmail())
                         .role(user.getRole())
+                        .createTime(user.getCreateTime())
                         .build())
                 .build();
     }
@@ -131,8 +133,9 @@ public class AuthServiceImpl implements AuthService {
                 .nickname(nickname)
                 .email(email)
                 .avatar(null)
-                .ledConfig("{\"theme\":\"dark\",\"glow\":true,\"color\":\"#00e5ff\",\"intensity\":0.85,\"glassOpacity\":0.42,\"glassTexture\":\"frosted\"}")
+                .ledConfig("{\"theme\":\"dark\",\"glow\":true,\"color\":\"#00e5ff\",\"intensity\":0.85,\"glassOpacity\":0.42,\"glassTexture\":\"frosted\",\"backgroundImageUrl\":\"\",\"backgroundOpacity\":0.16,\"chatBubbleOpacity\":0.5,\"chatBubbleTexture\":\"frosted\"}")
                 .role(Boolean.TRUE.equals(dto.getHr()) ? "HR" : "USER")
+                .createTime(LocalDateTime.now().withSecond(0).withNano(0))
                 .build();
         sysUserMapper.insert(user);
         codeStore.remove(email);

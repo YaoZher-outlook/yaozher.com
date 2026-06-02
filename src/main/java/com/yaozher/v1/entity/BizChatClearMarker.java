@@ -8,27 +8,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("biz_project")
-public class BizProject {
+@TableName("biz_chat_clear_marker")
+public class BizChatClearMarker {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String name;
+    private Long userId;
 
-    private String description;
+    private Long peerId;
 
-    private String coverImage;
+    private LocalDateTime clearedBefore;
 
-    private String downloadUrl;
-
-    private String githubUrl;
-
-    private String resourceType;
-
-    private Integer sortOrder;
+    private LocalDateTime updateTime;
 }

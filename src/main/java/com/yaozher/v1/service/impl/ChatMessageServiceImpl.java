@@ -1,11 +1,14 @@
 package com.yaozher.v1.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.yaozher.v1.entity.BizChatClearMarker;
 import com.yaozher.v1.entity.BizChatMessage;
 import com.yaozher.v1.entity.SysSkillBot;
 import com.yaozher.v1.entity.SysUser;
 import com.yaozher.v1.exception.BusinessException;
 import com.yaozher.v1.exception.ErrorCode;
+import com.yaozher.v1.mapper.BizChatClearMarkerMapper;
 import com.yaozher.v1.mapper.BizChatMessageMapper;
 import com.yaozher.v1.mapper.SysSkillBotMapper;
 import com.yaozher.v1.mapper.SysUserMapper;
@@ -20,10 +23,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -31,6 +33,7 @@ import java.util.Set;
 public class ChatMessageServiceImpl implements ChatMessageService {
 
     private final BizChatMessageMapper chatMessageMapper;
+    private final BizChatClearMarkerMapper clearMarkerMapper;
     private final SysUserMapper sysUserMapper;
     private final SysSkillBotMapper skillBotMapper;
 
@@ -65,6 +68,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         SysUser current = getCurrentUser();
         Long peer = parsePeerId(peerId);
         assertCanChat(current, peer);
+        LocalDateTime clearedBefore = getClearedBefore(current.getId(), peer);
 
         List<BizChatMessage> rows = chatMessageMapper.selectList(new LambdaQueryWrapper<BizChatMessage>()
                 .and(w -> w
@@ -74,31 +78,20 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         .eq(BizChatMessage::getSenderId, peer)
                         .eq(BizChatMessage::getReceiverId, current.getId())
                 )
+                .gt(clearedBefore != null, BizChatMessage::getCreateTime, clearedBefore)
                 .orderByAsc(BizChatMessage::getCreateTime)
                 .last("limit 200"));
         return rows.stream().map(this::toVo).toList();
     }
 
     private List<ChatContactVo> listAdminContacts(Long adminId) {
-        List<BizChatMessage> rows = chatMessageMapper.selectList(new LambdaQueryWrapper<BizChatMessage>()
-                .eq(BizChatMessage::getReceiverId, adminId)
-                .gt(BizChatMessage::getSenderId, 0)
-                .orderByDesc(BizChatMessage::getCreateTime)
-                .last("limit 500"));
-
-        Set<Long> userIds = new LinkedHashSet<>();
-        for (BizChatMessage row : rows) {
-            if (!adminId.equals(row.getSenderId())) {
-                userIds.add(row.getSenderId());
-            }
-        }
-
         List<ChatContactVo> contacts = new ArrayList<>();
-        for (Long id : userIds) {
-            SysUser user = sysUserMapper.selectById(id);
-            if (user != null) {
-                contacts.add(userContact(user, user.getUsername()));
-            }
+        List<SysUser> users = sysUserMapper.selectList(new LambdaQueryWrapper<SysUser>()
+                .ne(SysUser::getId, adminId)
+                .orderByAsc(SysUser::getRole)
+                .orderByAsc(SysUser::getId));
+        for (SysUser user : users) {
+            contacts.add(userContact(user, user.getUsername()));
         }
         contacts.addAll(botContacts());
         return contacts;
@@ -141,8 +134,70 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .role(user.getRole())
                 .name(StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername())
                 .avatar(user.getAvatar())
+                .email(user.getEmail())
+                .createTime(user.getCreateTime())
                 .description(description)
                 .build();
+    }
+
+    @Override
+    public void clearView(String peerId) {
+        SysUser current = getCurrentUser();
+        Long peer = parsePeerId(peerId);
+        assertCanChat(current, peer);
+        LocalDateTime now = LocalDateTime.now();
+        BizChatClearMarker marker = clearMarkerMapper.selectOne(new LambdaQueryWrapper<BizChatClearMarker>()
+                .eq(BizChatClearMarker::getUserId, current.getId())
+                .eq(BizChatClearMarker::getPeerId, peer)
+                .last("limit 1"));
+        if (marker == null) {
+            marker = BizChatClearMarker.builder()
+                    .userId(current.getId())
+                    .peerId(peer)
+                    .clearedBefore(now)
+                    .updateTime(now)
+                    .build();
+            clearMarkerMapper.insert(marker);
+            return;
+        }
+        clearMarkerMapper.update(null, new LambdaUpdateWrapper<BizChatClearMarker>()
+                .eq(BizChatClearMarker::getId, marker.getId())
+                .set(BizChatClearMarker::getClearedBefore, now)
+                .set(BizChatClearMarker::getUpdateTime, now));
+    }
+
+    @Override
+    public void deleteHistory(String peerId) {
+        SysUser current = getCurrentUser();
+        if (!"ADMIN".equalsIgnoreCase(current.getRole())) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "Only ADMIN can delete chat history");
+        }
+        Long peer = parsePeerId(peerId);
+        assertCanChat(current, peer);
+        chatMessageMapper.delete(new LambdaQueryWrapper<BizChatMessage>()
+                .and(w -> w
+                        .eq(BizChatMessage::getSenderId, current.getId())
+                        .eq(BizChatMessage::getReceiverId, peer)
+                        .or()
+                        .eq(BizChatMessage::getSenderId, peer)
+                        .eq(BizChatMessage::getReceiverId, current.getId())
+                ));
+        clearMarkerMapper.delete(new LambdaQueryWrapper<BizChatClearMarker>()
+                .and(w -> w
+                        .eq(BizChatClearMarker::getUserId, current.getId())
+                        .eq(BizChatClearMarker::getPeerId, peer)
+                        .or()
+                        .eq(BizChatClearMarker::getUserId, peer)
+                        .eq(BizChatClearMarker::getPeerId, current.getId())
+                ));
+    }
+
+    private LocalDateTime getClearedBefore(Long userId, Long peerId) {
+        BizChatClearMarker marker = clearMarkerMapper.selectOne(new LambdaQueryWrapper<BizChatClearMarker>()
+                .eq(BizChatClearMarker::getUserId, userId)
+                .eq(BizChatClearMarker::getPeerId, peerId)
+                .last("limit 1"));
+        return marker == null ? null : marker.getClearedBefore();
     }
 
     private void assertCanChat(SysUser current, Long peer) {

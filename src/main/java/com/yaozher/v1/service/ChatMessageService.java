@@ -16,4 +16,8 @@ public interface ChatMessageService {
     List<ChatContactVo> listContacts();
 
     List<ChatMessageVo> listHistory(String peerId);
+
+    void clearView(String peerId);
+
+    void deleteHistory(String peerId);
 }

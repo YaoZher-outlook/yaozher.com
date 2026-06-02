@@ -139,6 +139,7 @@ public class UserServiceImpl implements UserService {
                 .avatar(user.getAvatar())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .createTime(user.getCreateTime())
                 .ledConfig(user.getLedConfig())
                 .build();
     }

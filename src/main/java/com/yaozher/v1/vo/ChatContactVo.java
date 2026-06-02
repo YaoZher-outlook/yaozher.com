@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,6 +22,10 @@ public class ChatContactVo {
     private String name;
 
     private String avatar;
+
+    private String email;
+
+    private LocalDateTime createTime;
 
     private String description;
 }

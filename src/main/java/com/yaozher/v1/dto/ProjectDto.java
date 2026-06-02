@@ -23,5 +23,7 @@ public class ProjectDto {
 
     private String githubUrl;
 
+    private String resourceType;
+
     private Integer sortOrder;
 }

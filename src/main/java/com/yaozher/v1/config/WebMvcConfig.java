@@ -45,6 +45,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/backgrounds/**")
                 .addResourceLocations(backgroundLocation, legacyBackgroundLocation);
 
+        String backgroundPresetDir = appProperties.getBackgroundPresetDir();
+        if (!StringUtils.hasText(backgroundPresetDir)) {
+            backgroundPresetDir = "./storage/assets/background-presets";
+        }
+        String backgroundPresetLocation = Paths.get(backgroundPresetDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/background-presets/**")
+                .addResourceLocations(backgroundPresetLocation);
+
         // news images
         String newsImageDir = appProperties.getNewsImageDir();
         if (!StringUtils.hasText(newsImageDir)) {
@@ -53,6 +61,25 @@ public class WebMvcConfig implements WebMvcConfigurer {
         String newsImageLocation = Paths.get(newsImageDir).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/news-images/**")
                 .addResourceLocations(newsImageLocation, "classpath:/static/news-images/");
+
+        String projectCoverDir = appProperties.getProjectCoverDir();
+        if (!StringUtils.hasText(projectCoverDir)) {
+            projectCoverDir = "./storage/assets/cover-images";
+        }
+        String projectCoverLocation = Paths.get(projectCoverDir).toAbsolutePath().normalize().toUri().toString();
+        String legacyProjectCoverLocation = Paths.get("./storage/assets/project-covers").toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/cover-images/**")
+                .addResourceLocations(projectCoverLocation, "classpath:/static/cover-images/");
+        registry.addResourceHandler("/project-covers/**")
+                .addResourceLocations(legacyProjectCoverLocation, projectCoverLocation, "classpath:/static/cover-images/");
+
+        String projectFileDir = appProperties.getProjectFileDir();
+        if (!StringUtils.hasText(projectFileDir)) {
+            projectFileDir = "./storage/assets/project-files";
+        }
+        String projectFileLocation = Paths.get(projectFileDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/project-files/**")
+                .addResourceLocations(projectFileLocation);
 
         String musicDir = appProperties.getMusicDir();
         if (!StringUtils.hasText(musicDir)) {

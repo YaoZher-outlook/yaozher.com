@@ -28,6 +28,7 @@ public class ProjectServiceImpl implements ProjectService {
                         .coverImage(p.getCoverImage())
                         .downloadUrl(p.getDownloadUrl())
                         .githubUrl(p.getGithubUrl())
+                        .resourceType(p.getResourceType())
                         .sortOrder(p.getSortOrder())
                         .build())
                 .toList();

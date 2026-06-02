@@ -36,18 +36,24 @@ build/
 music-library/
 
 # Runtime image/media uploads
+storage/
 uploads/
 avatar/
 avatars/
 background/
 backgrounds/
 news-images/
+cover-images/
+project-covers/
+project-files/
 
 # Bundled static image folders; keep folder placeholders only.
 src/main/resources/static/avatars/*
 !src/main/resources/static/avatars/.gitkeep
 src/main/resources/static/news-images/*
 !src/main/resources/static/news-images/.gitkeep
+src/main/resources/static/cover-images/*
+!src/main/resources/static/cover-images/.gitkeep
 src/main/resources/static/backgrounds/*
 !src/main/resources/static/backgrounds/.gitkeep
 
