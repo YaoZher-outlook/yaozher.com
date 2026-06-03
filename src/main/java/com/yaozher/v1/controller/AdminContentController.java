@@ -44,7 +44,6 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminContentController {
 
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif");
@@ -54,12 +53,14 @@ public class AdminContentController {
     private final AppProperties appProperties;
 
     @GetMapping("/news")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
     public Result<List<BizNews>> listNews() {
         return Result.ok(newsMapper.selectList(new LambdaQueryWrapper<BizNews>()
                 .orderByDesc(BizNews::getCreateTime)));
     }
 
     @PostMapping("/news")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<BizNews> createNews(@Valid @RequestBody AdminNewsSaveDto dto) {
         BizNews news = BizNews.builder()
                 .title(dto.getTitle())
@@ -74,6 +75,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/news/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<BizNews> updateNews(@PathVariable Long id, @Valid @RequestBody AdminNewsSaveDto dto) {
         BizNews news = newsMapper.selectById(id);
         if (news == null) {
@@ -88,18 +90,21 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/news/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Void> deleteNews(@PathVariable Long id) {
         newsMapper.deleteById(id);
         return Result.ok();
     }
 
     @GetMapping("/project")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
     public Result<List<BizProject>> listProjects() {
         return Result.ok(projectMapper.selectList(new LambdaQueryWrapper<BizProject>()
                 .orderByAsc(BizProject::getSortOrder)));
     }
 
     @PostMapping("/project")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<BizProject> createProject(@Valid @RequestBody AdminProjectSaveDto dto) {
         BizProject project = toProject(dto);
         projectMapper.insert(project);
@@ -107,6 +112,7 @@ public class AdminContentController {
     }
 
     @PostMapping(value = "/project/publish", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<BizProject> publishProject(
             @RequestParam String name,
             @RequestParam(required = false) String description,
@@ -146,6 +152,7 @@ public class AdminContentController {
     }
 
     @PutMapping("/project/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<BizProject> updateProject(@PathVariable Long id, @Valid @RequestBody AdminProjectSaveDto dto) {
         if (projectMapper.selectById(id) == null) {
             throw BusinessException.of(ErrorCode.BIZ_ERROR, "Project not found");
@@ -157,6 +164,7 @@ public class AdminContentController {
     }
 
     @DeleteMapping("/project/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Void> deleteProject(@PathVariable Long id) {
         projectMapper.deleteById(id);
         return Result.ok();

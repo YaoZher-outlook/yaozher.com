@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS biz_chat_message;
 DROP TABLE IF EXISTS biz_project;
 DROP TABLE IF EXISTS biz_news;
 DROP TABLE IF EXISTS sys_skill_bot;
+DROP TABLE IF EXISTS user_music_setting;
 DROP TABLE IF EXISTS sys_user;
 
 CREATE TABLE sys_user (
@@ -23,6 +24,17 @@ CREATE TABLE sys_user (
   PRIMARY KEY (id),
   UNIQUE KEY uk_sys_user_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统用户表';
+
+CREATE TABLE user_music_setting (
+  id          BIGINT NOT NULL AUTO_INCREMENT COMMENT 'primary key',
+  user_id     BIGINT NOT NULL COMMENT 'sys_user.id',
+  config_json JSON   NULL COMMENT 'music player, lyric panel and music background settings',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_music_setting_user_id (user_id),
+  CONSTRAINT fk_user_music_setting_user FOREIGN KEY (user_id) REFERENCES sys_user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='user music settings';
 
 CREATE TABLE sys_skill_bot (
   id              BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',

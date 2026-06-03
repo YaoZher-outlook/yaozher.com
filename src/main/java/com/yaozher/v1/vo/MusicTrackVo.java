@@ -22,4 +22,6 @@ public class MusicTrackVo {
     private String url;
 
     private String coverUrl;
+
+    private String lyricUrl;
 }

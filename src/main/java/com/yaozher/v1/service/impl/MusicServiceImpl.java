@@ -35,6 +35,7 @@ public class MusicServiceImpl implements MusicService {
 
     private static final List<String> SUPPORTED_EXTENSIONS = List.of(".mp3", ".flac", ".wav", ".ogg", ".m4a");
     private static final List<String> IMAGE_EXTENSIONS = List.of(".jpg", ".jpeg", ".png", ".webp");
+    private static final List<String> LYRIC_EXTENSIONS = List.of(".lrc", ".txt");
     private static final Set<String> GENERIC_COVER_NAMES = Set.of("cover", "folder", "front", "album");
     private static final String NO_COVER = "__NO_COVER__";
 
@@ -153,6 +154,7 @@ public class MusicServiceImpl implements MusicService {
                 .fileName(fileName)
                 .url(url)
                 .coverUrl(findLocalCoverUrl(root, playlistDir, baseName))
+                .lyricUrl(findLocalLyricUrl(root, playlistDir, baseName))
                 .build();
     }
 
@@ -209,6 +211,26 @@ public class MusicServiceImpl implements MusicService {
     private boolean isImage(Path file) {
         String lower = file.getFileName().toString().toLowerCase(Locale.ROOT);
         return IMAGE_EXTENSIONS.stream().anyMatch(lower::endsWith);
+    }
+
+    private String findLocalLyricUrl(Path root, Path playlistDir, String baseName) {
+        try (Stream<Path> files = Files.list(playlistDir)) {
+            String lowerBase = baseName.toLowerCase(Locale.ROOT);
+            return files
+                    .filter(Files::isRegularFile)
+                    .filter(this::isLyric)
+                    .filter(path -> stripExtension(path.getFileName().toString()).toLowerCase(Locale.ROOT).equals(lowerBase))
+                    .findFirst()
+                    .map(path -> encodeMusicUrl(root, path))
+                    .orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean isLyric(Path file) {
+        String lower = file.getFileName().toString().toLowerCase(Locale.ROOT);
+        return LYRIC_EXTENSIONS.stream().anyMatch(lower::endsWith);
     }
 
     private String encodeMusicUrl(Path root, Path file) {

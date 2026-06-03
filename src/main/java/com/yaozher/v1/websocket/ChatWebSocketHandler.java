@@ -191,9 +191,27 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         if (receiver == null) {
             return false;
         }
-        if ("ADMIN".equalsIgnoreCase(sender.getRole())) {
+        return canChatWith(sender, receiver);
+    }
+
+    private boolean canChatWith(SysUser sender, SysUser receiver) {
+        if (isAdmin(sender)) {
             return true;
         }
-        return "ADMIN".equalsIgnoreCase(receiver.getRole());
+        if (isFriend(sender)) {
+            return isAdmin(receiver) || isFriend(receiver);
+        }
+        return isAdmin(receiver);
+    }
+
+    private boolean isAdmin(SysUser user) {
+        return user != null && "ADMIN".equalsIgnoreCase(user.getRole());
+    }
+
+    private boolean isFriend(SysUser user) {
+        if (user == null || user.getRole() == null) {
+            return false;
+        }
+        return "FRIEND".equalsIgnoreCase(user.getRole()) || "FRIENDS".equalsIgnoreCase(user.getRole());
     }
 }

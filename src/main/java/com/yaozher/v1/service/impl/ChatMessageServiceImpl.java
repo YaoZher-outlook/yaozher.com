@@ -57,10 +57,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Override
     public List<ChatContactVo> listContacts() {
         SysUser current = getCurrentUser();
-        if ("ADMIN".equalsIgnoreCase(current.getRole())) {
+        if (isAdmin(current)) {
             return listAdminContacts(current.getId());
         }
-        return listUserContacts();
+        if (isFriend(current)) {
+            return listFriendContacts(current.getId());
+        }
+        return listLimitedContacts();
     }
 
     @Override
@@ -91,20 +94,40 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .orderByAsc(SysUser::getRole)
                 .orderByAsc(SysUser::getId));
         for (SysUser user : users) {
-            contacts.add(userContact(user, user.getUsername()));
+            contacts.add(userContact(user, user.getUsername(), true));
         }
         contacts.addAll(botContacts());
         return contacts;
     }
 
-    private List<ChatContactVo> listUserContacts() {
+    private List<ChatContactVo> listFriendContacts(Long currentId) {
+        List<ChatContactVo> contacts = new ArrayList<>();
+        List<SysUser> users = sysUserMapper.selectList(new LambdaQueryWrapper<SysUser>()
+                .ne(SysUser::getId, currentId)
+                .and(w -> w
+                        .eq(SysUser::getRole, "ADMIN")
+                        .or()
+                        .eq(SysUser::getRole, "FRIEND")
+                        .or()
+                        .eq(SysUser::getRole, "FRIENDS")
+                )
+                .orderByAsc(SysUser::getRole)
+                .orderByAsc(SysUser::getId));
+        for (SysUser user : users) {
+            contacts.add(userContact(user, user.getRole(), false));
+        }
+        contacts.addAll(botContacts());
+        return contacts;
+    }
+
+    private List<ChatContactVo> listLimitedContacts() {
         List<ChatContactVo> contacts = new ArrayList<>();
         SysUser admin = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getRole, "ADMIN")
                 .orderByAsc(SysUser::getId)
                 .last("limit 1"));
         if (admin != null) {
-            contacts.add(userContact(admin, "站点管理员"));
+            contacts.add(userContact(admin, "ADMIN", false));
         }
         contacts.addAll(botContacts());
         return contacts;
@@ -121,20 +144,21 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                     .role("CHATBOT")
                     .name(bot.getBotName())
                     .avatar(null)
+                    .email(null)
                     .description(bot.getDescription())
                     .build());
         }
         return contacts;
     }
 
-    private ChatContactVo userContact(SysUser user, String description) {
+    private ChatContactVo userContact(SysUser user, String description, boolean includeEmail) {
         return ChatContactVo.builder()
                 .id(String.valueOf(user.getId()))
                 .type("USER")
                 .role(user.getRole())
                 .name(StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername())
                 .avatar(user.getAvatar())
-                .email(user.getEmail())
+                .email(includeEmail ? user.getEmail() : null)
                 .createTime(user.getCreateTime())
                 .description(description)
                 .build();
@@ -169,7 +193,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Override
     public void deleteHistory(String peerId) {
         SysUser current = getCurrentUser();
-        if (!"ADMIN".equalsIgnoreCase(current.getRole())) {
+        if (!isAdmin(current)) {
             throw BusinessException.of(ErrorCode.FORBIDDEN, "Only ADMIN can delete chat history");
         }
         Long peer = parsePeerId(peerId);
@@ -202,26 +226,33 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     private void assertCanChat(SysUser current, Long peer) {
         if (peer == null) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天对象不存在");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Chat target does not exist");
         }
         if (peer < 0) {
             SysSkillBot bot = skillBotMapper.selectById(Math.abs(peer));
             if (bot == null) {
-                throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天机器人不存在");
+                throw BusinessException.of(ErrorCode.PARAM_ERROR, "Chatbot does not exist");
             }
             return;
         }
 
         SysUser peerUser = sysUserMapper.selectById(peer);
         if (peerUser == null) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天对象不存在");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Chat target does not exist");
         }
+        if (!canChatWith(current, peerUser)) {
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "No permission to chat with this user");
+        }
+    }
 
-        boolean admin = "ADMIN".equalsIgnoreCase(current.getRole());
-        boolean peerAdmin = "ADMIN".equalsIgnoreCase(peerUser.getRole());
-        if (!admin && !peerAdmin) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "普通用户只能联系 ADMIN 或 chatbot");
+    private boolean canChatWith(SysUser current, SysUser peer) {
+        if (isAdmin(current)) {
+            return true;
         }
+        if (isFriend(current)) {
+            return isAdmin(peer) || isFriend(peer);
+        }
+        return isAdmin(peer);
     }
 
     private SysUser getCurrentUser() {
@@ -242,7 +273,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         try {
             return Long.valueOf(peerId);
         } catch (Exception e) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天对象格式错误");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Invalid chat target");
         }
     }
 
@@ -256,5 +287,16 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .fileUrl(msg.getFileUrl())
                 .createTime(msg.getCreateTime())
                 .build();
+    }
+
+    private boolean isAdmin(SysUser user) {
+        return user != null && "ADMIN".equalsIgnoreCase(user.getRole());
+    }
+
+    private boolean isFriend(SysUser user) {
+        if (user == null || user.getRole() == null) {
+            return false;
+        }
+        return "FRIEND".equalsIgnoreCase(user.getRole()) || "FRIENDS".equalsIgnoreCase(user.getRole());
     }
 }
