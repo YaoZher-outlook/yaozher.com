@@ -51,7 +51,6 @@ public class SecurityConfig {
                                 "/api/news/**",
                                 "/api/project/**",
                                 "/api/music/**",
-                                "/api/weather/**",
                                 "/ws/**",
                                 "/",
                                 "/index.html",
