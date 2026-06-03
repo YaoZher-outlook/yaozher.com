@@ -194,7 +194,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     public void deleteHistory(String peerId) {
         SysUser current = getCurrentUser();
         if (!isAdmin(current)) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "Only ADMIN can delete chat history");
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "只有管理员可以删除数据库聊天记录");
         }
         Long peer = parsePeerId(peerId);
         assertCanChat(current, peer);
@@ -226,22 +226,22 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     private void assertCanChat(SysUser current, Long peer) {
         if (peer == null) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Chat target does not exist");
+                throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天对象不存在");
         }
         if (peer < 0) {
             SysSkillBot bot = skillBotMapper.selectById(Math.abs(peer));
             if (bot == null) {
-                throw BusinessException.of(ErrorCode.PARAM_ERROR, "Chatbot does not exist");
+                throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天机器人不存在");
             }
             return;
         }
 
         SysUser peerUser = sysUserMapper.selectById(peer);
         if (peerUser == null) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Chat target does not exist");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天对象不存在");
         }
         if (!canChatWith(current, peerUser)) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "No permission to chat with this user");
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "你暂时不能和该用户聊天");
         }
     }
 
@@ -258,13 +258,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private SysUser getCurrentUser() {
         String username = SecurityUtils.getCurrentUsername();
         if (!StringUtils.hasText(username)) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "请先登录");
         }
         SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, username)
                 .last("limit 1"));
         if (user == null) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "请先登录");
         }
         return user;
     }
@@ -273,7 +273,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         try {
             return Long.valueOf(peerId);
         } catch (Exception e) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Invalid chat target");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "聊天对象不正确");
         }
     }
 

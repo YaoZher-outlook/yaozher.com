@@ -85,7 +85,7 @@ public class UserServiceImpl implements UserService {
         SysUser user = getCurrentUser();
         boolean admin = "ADMIN".equalsIgnoreCase(user.getRole());
         if (!admin && (dto.getAdminApiKey() != null || dto.getChatbotApiKey() != null)) {
-            throw BusinessException.of(ErrorCode.FORBIDDEN, "Only ADMIN can update admin API keys");
+            throw BusinessException.of(ErrorCode.FORBIDDEN, "只有管理员可以更新全站 API Key");
         }
 
         LambdaUpdateWrapper<SysUser> update = new LambdaUpdateWrapper<SysUser>()
@@ -113,13 +113,13 @@ public class UserServiceImpl implements UserService {
     private SysUser getCurrentUser() {
         String username = SecurityUtils.getCurrentUsername();
         if (!StringUtils.hasText(username)) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "请先登录");
         }
         SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, username)
                 .last("limit 1"));
         if (user == null) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "请先登录");
         }
         return user;
     }

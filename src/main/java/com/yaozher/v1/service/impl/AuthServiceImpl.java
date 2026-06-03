@@ -41,6 +41,9 @@ public class AuthServiceImpl implements AuthService {
     private static final Duration CODE_TTL = Duration.ofMinutes(10);
     private static final Duration SEND_COOLDOWN = Duration.ofSeconds(60);
     private static final int MAX_VERIFY_ATTEMPTS = 5;
+    private static final String DEFAULT_LED_CONFIG = """
+            {"theme":"dark","glow":true,"color":"#00e5ff","intensity":0.85,"glassOpacity":0.42,"glassTexture":"frosted","backgroundImageUrl":"","backgroundOpacity":0.16,"chatBubbleOpacity":0.5,"chatBubbleTexture":"frosted","musicBgEnabled":true,"musicBgIntensity":0.52,"musicBgBlur":4,"musicBgSize":1,"musicBgColor":"#00e5ff","lyricsPanelEnabled":false,"lyricsPanelOpacity":0.36,"lyricsFontSize":22,"lyricsFollow":true,"lyricsLineCount":5,"lyricsBlur":14}
+            """;
 
     private final SysUserMapper sysUserMapper;
     private final PasswordEncoder passwordEncoder;
@@ -56,11 +59,8 @@ public class AuthServiceImpl implements AuthService {
                 .eq(SysUser::getUsername, dto.getUsername())
                 .last("limit 1"));
 
-        if (user == null) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
-        }
-        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+        if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "账号或密码错误");
         }
 
         String secret = appProperties.getJwt() == null || appProperties.getJwt().getSecret() == null
@@ -98,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
         CodeRecord old = codeStore.get(email);
         Instant now = Instant.now();
         if (old != null && Duration.between(old.lastSentAt(), now).compareTo(SEND_COOLDOWN) < 0) {
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Verification code was sent recently, please wait");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "验证码发送太频繁，请稍后再试");
         }
 
         String code = String.format("%06d", secureRandom.nextInt(1_000_000));
@@ -115,13 +115,13 @@ public class AuthServiceImpl implements AuthService {
         String code = dto.getCode() == null ? "" : dto.getCode().trim();
 
         if (!USERNAME_PATTERN.matcher(username).matches()) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Username can only contain letters, numbers and underscore, length 3-64");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "账号只能包含字母、数字和下划线，长度 3-64");
         }
         if (!StringUtils.hasText(nickname)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Nickname must not be blank");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "请输入昵称");
         }
         if (dto.getPassword() == null || dto.getPassword().length() < 6 || dto.getPassword().length() > 72) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Password length must be 6-72");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "密码长度需为 6-72 位");
         }
         ensureUsernameNotUsed(username);
         ensureEmailNotUsed(email);
@@ -133,7 +133,7 @@ public class AuthServiceImpl implements AuthService {
                 .nickname(nickname)
                 .email(email)
                 .avatar(null)
-                .ledConfig("{\"theme\":\"dark\",\"glow\":true,\"color\":\"#00e5ff\",\"intensity\":0.85,\"glassOpacity\":0.42,\"glassTexture\":\"frosted\",\"backgroundImageUrl\":\"\",\"backgroundOpacity\":0.16,\"chatBubbleOpacity\":0.5,\"chatBubbleTexture\":\"frosted\"}")
+                .ledConfig(DEFAULT_LED_CONFIG)
                 .role(Boolean.TRUE.equals(dto.getHr()) ? "HR" : "USER")
                 .createTime(LocalDateTime.now().withSecond(0).withNano(0))
                 .build();
@@ -145,7 +145,7 @@ public class AuthServiceImpl implements AuthService {
         Long count = sysUserMapper.selectCount(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, username));
         if (count != null && count > 0) {
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Username already exists");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "账号已存在");
         }
     }
 
@@ -153,7 +153,7 @@ public class AuthServiceImpl implements AuthService {
         Long count = sysUserMapper.selectCount(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getEmail, email));
         if (count != null && count > 0) {
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Email already registered");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "邮箱已被注册");
         }
     }
 
@@ -161,21 +161,21 @@ public class AuthServiceImpl implements AuthService {
         CodeRecord record = codeStore.get(email);
         if (record == null || record.expiresAt().isBefore(Instant.now())) {
             codeStore.remove(email);
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Verification code expired");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "验证码已过期，请重新获取");
         }
         if (record.attempts() >= MAX_VERIFY_ATTEMPTS) {
             codeStore.remove(email);
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Too many verification attempts");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "验证码尝试次数过多，请重新获取");
         }
         if (!record.code().equals(code)) {
             codeStore.put(email, record.withAttempts(record.attempts() + 1));
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Verification code is invalid");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "验证码不正确");
         }
     }
 
     private String normalizeEmail(String raw) {
         if (!StringUtils.hasText(raw)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "Email must not be blank");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "请输入邮箱");
         }
         return raw.trim().toLowerCase();
     }

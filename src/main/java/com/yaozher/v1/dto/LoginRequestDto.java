@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginRequestDto {
 
-    @NotBlank(message = "username不能为空")
+    @NotBlank(message = "请输入账号")
     private String username;
 
-    @NotBlank(message = "password不能为空")
+    @NotBlank(message = "请输入密码")
     private String password;
 }

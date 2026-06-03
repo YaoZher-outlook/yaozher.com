@@ -14,9 +14,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RegisterCodeRequestDto {
 
-    @NotBlank(message = "email must not be blank")
-    @Email(message = "email format is invalid")
-    @Size(max = 128, message = "email length must be <= 128")
+    @NotBlank(message = "请输入邮箱")
+    @Email(message = "邮箱格式不正确")
+    @Size(max = 128, message = "邮箱长度不能超过 128 位")
     private String email;
 }
-

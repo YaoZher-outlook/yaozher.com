@@ -14,18 +14,12 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * 业务异常
-     */
     @ExceptionHandler(BusinessException.class)
     public Result<Void> handleBusinessException(BusinessException e) {
         log.warn("BusinessException: code={}, msg={}", e.getCode(), e.getMessage());
         return Result.fail(e.getCode() == null ? 40001 : e.getCode(), e.getMessage());
     }
 
-    /**
-     * 参数校验异常
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         String msg = e.getBindingResult().getFieldErrors().stream()
@@ -37,12 +31,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         log.warn("HttpMessageNotReadableException: {}", e.getMessage());
-        return Result.fail(40000, "请求体解析失败");
+        return Result.fail(40000, "请求内容格式不正确");
     }
 
-    /**
-     * 兜底异常
-     */
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         log.error("Unhandled exception", e);

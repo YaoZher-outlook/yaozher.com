@@ -144,7 +144,7 @@ public class UploadServiceImpl implements UploadService {
     private SysUser getCurrentUser() {
         SysUser user = getCurrentUserOrNull();
         if (user == null) {
-            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "Unauthorized");
+            throw BusinessException.of(ErrorCode.UNAUTHORIZED, "请先登录");
         }
         return user;
     }

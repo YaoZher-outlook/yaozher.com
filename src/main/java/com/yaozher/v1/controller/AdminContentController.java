@@ -124,7 +124,7 @@ public class AdminContentController {
             @RequestParam(required = false) MultipartFile file
     ) {
         if (!StringUtils.hasText(name)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "name must not be blank");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "请输入项目名称");
         }
 
         BizProject project = BizProject.builder()
@@ -155,7 +155,7 @@ public class AdminContentController {
     @PreAuthorize("hasRole('ADMIN')")
     public Result<BizProject> updateProject(@PathVariable Long id, @Valid @RequestBody AdminProjectSaveDto dto) {
         if (projectMapper.selectById(id) == null) {
-            throw BusinessException.of(ErrorCode.BIZ_ERROR, "Project not found");
+            throw BusinessException.of(ErrorCode.BIZ_ERROR, "项目不存在");
         }
         BizProject project = toProject(dto);
         project.setId(id);
@@ -197,7 +197,7 @@ public class AdminContentController {
             return null;
         }
         if (!isSupportedImage(file)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "cover only supports jpg, png, or gif");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "封面仅支持 jpg、png 或 gif 图片");
         }
         String filename = projectId + ".png";
         Path dir = Paths.get(StringUtils.hasText(appProperties.getProjectCoverDir())
@@ -207,12 +207,12 @@ public class AdminContentController {
                 .normalize();
         Path target = dir.resolve(filename).normalize();
         if (!target.startsWith(dir)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "invalid cover filename");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "封面文件名不合法");
         }
         try {
             BufferedImage source = ImageIO.read(file.getInputStream());
             if (source == null) {
-                throw BusinessException.of(ErrorCode.PARAM_ERROR, "invalid cover image");
+                throw BusinessException.of(ErrorCode.PARAM_ERROR, "封面图片无法读取");
             }
             BufferedImage png = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
             Graphics2D graphics = png.createGraphics();
@@ -225,7 +225,7 @@ public class AdminContentController {
             throw e;
         } catch (IOException e) {
             log.error("project cover upload failed", e);
-            throw BusinessException.of(ErrorCode.SYSTEM_ERROR, "cover upload failed");
+            throw BusinessException.of(ErrorCode.SYSTEM_ERROR, "封面上传失败");
         }
     }
 
@@ -242,7 +242,7 @@ public class AdminContentController {
                 .normalize();
         Path target = dir.resolve(filename).normalize();
         if (!target.startsWith(dir)) {
-            throw BusinessException.of(ErrorCode.PARAM_ERROR, "invalid project file name");
+            throw BusinessException.of(ErrorCode.PARAM_ERROR, "项目文件名不合法");
         }
         try {
             Files.createDirectories(dir);
@@ -250,7 +250,7 @@ public class AdminContentController {
             return urlPrefix(appProperties.getProjectFileUrlPrefix(), "/project-files/") + filename;
         } catch (IOException e) {
             log.error("project file upload failed", e);
-            throw BusinessException.of(ErrorCode.SYSTEM_ERROR, "project file upload failed");
+            throw BusinessException.of(ErrorCode.SYSTEM_ERROR, "项目文件上传失败");
         }
     }
 

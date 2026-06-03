@@ -13,14 +13,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserProfileUpdateDto {
 
-    @Size(max = 64, message = "nickname length must be <= 64")
+    @Size(max = 64, message = "昵称长度不能超过 64 位")
     private String nickname;
 
-    @Size(max = 512, message = "avatar length must be <= 512")
+    @Size(max = 512, message = "头像地址长度不能超过 512 位")
     private String avatar;
 
-    @Email(message = "email format is invalid")
-    @Size(max = 128, message = "email length must be <= 128")
+    @Email(message = "邮箱格式不正确")
+    @Size(max = 128, message = "邮箱长度不能超过 128 位")
     private String email;
 }
-

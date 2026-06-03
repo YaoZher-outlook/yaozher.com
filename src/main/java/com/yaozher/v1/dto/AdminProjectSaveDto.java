@@ -13,23 +13,23 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AdminProjectSaveDto {
 
-    @NotBlank(message = "name must not be blank")
-    @Size(max = 128, message = "name length must be <= 128")
+    @NotBlank(message = "请输入项目名称")
+    @Size(max = 128, message = "项目名称不能超过 128 位")
     private String name;
 
-    @Size(max = 512, message = "description length must be <= 512")
+    @Size(max = 512, message = "项目描述不能超过 512 位")
     private String description;
 
-    @Size(max = 512, message = "coverImage length must be <= 512")
+    @Size(max = 512, message = "封面地址不能超过 512 位")
     private String coverImage;
 
-    @Size(max = 512, message = "downloadUrl length must be <= 512")
+    @Size(max = 512, message = "下载地址不能超过 512 位")
     private String downloadUrl;
 
-    @Size(max = 512, message = "githubUrl length must be <= 512")
+    @Size(max = 512, message = "仓库地址不能超过 512 位")
     private String githubUrl;
 
-    @Size(max = 32, message = "resourceType length must be <= 32")
+    @Size(max = 32, message = "资源类型不能超过 32 位")
     private String resourceType;
 
     private Integer sortOrder;
