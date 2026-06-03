@@ -3,6 +3,7 @@ package com.yaozher.v1.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.yaozher.v1.dto.ApiKeyUpdateDto;
+import com.yaozher.v1.dto.UserLocationUpdateDto;
 import com.yaozher.v1.dto.UserProfileUpdateDto;
 import com.yaozher.v1.entity.SysUser;
 import com.yaozher.v1.exception.BusinessException;
@@ -16,6 +17,8 @@ import com.yaozher.v1.vo.UserProfileVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +50,20 @@ public class UserServiceImpl implements UserService {
         if (dto.getEmail() != null) {
             update.setEmail(dto.getEmail().trim());
         }
+        sysUserMapper.updateById(update);
+        return toProfileVo(sysUserMapper.selectById(user.getId()));
+    }
+
+    @Override
+    public UserProfileVo updateLocation(UserLocationUpdateDto dto) {
+        SysUser user = getCurrentUser();
+        SysUser update = SysUser.builder()
+                .id(user.getId())
+                .locationLatitude(dto.getLatitude())
+                .locationLongitude(dto.getLongitude())
+                .locationAccuracy(dto.getAccuracy())
+                .locationUpdatedAt(LocalDateTime.now().withSecond(0).withNano(0))
+                .build();
         sysUserMapper.updateById(update);
         return toProfileVo(sysUserMapper.selectById(user.getId()));
     }
@@ -141,6 +158,10 @@ public class UserServiceImpl implements UserService {
                 .role(user.getRole())
                 .createTime(user.getCreateTime())
                 .ledConfig(user.getLedConfig())
+                .locationLatitude(user.getLocationLatitude())
+                .locationLongitude(user.getLocationLongitude())
+                .locationAccuracy(user.getLocationAccuracy())
+                .locationUpdatedAt(user.getLocationUpdatedAt())
                 .build();
     }
 }

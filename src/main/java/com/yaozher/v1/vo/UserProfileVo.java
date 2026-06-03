@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -31,4 +32,12 @@ public class UserProfileVo {
      * LED 配置（JSON字符串）
      */
     private String ledConfig;
+
+    private BigDecimal locationLatitude;
+
+    private BigDecimal locationLongitude;
+
+    private Double locationAccuracy;
+
+    private LocalDateTime locationUpdatedAt;
 }

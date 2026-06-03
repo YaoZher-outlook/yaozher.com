@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -44,4 +45,12 @@ public class SysUser {
     private String chatbotApiKeyEncrypted;
 
     private LocalDateTime createTime;
+
+    private BigDecimal locationLatitude;
+
+    private BigDecimal locationLongitude;
+
+    private Double locationAccuracy;
+
+    private LocalDateTime locationUpdatedAt;
 }
