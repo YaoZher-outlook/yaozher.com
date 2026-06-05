@@ -1,61 +1,83 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+# Local editor state
 .vscode/
+.idea/
+.codex/
+.agents/
+*.iml
 
-# Local music library
-music-library/
+# Local downloads and installers
+.downloads/
+*.exe
+*.msi
+*.dmg
+*.pkg
+*.iso
 
-# Runtime image/media uploads
-storage/
-uploads/
-avatar/
-avatars/
-background/
-backgrounds/
-news-images/
-cover-images/
-project-covers/
-project-files/
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.pid
+*.stackdump
+*.swp
+Thumbs.db
+Desktop.ini
 
-# Bundled static image folders; keep folder placeholders only.
-src/main/resources/static/avatars/*
-!src/main/resources/static/avatars/.gitkeep
-src/main/resources/static/news-images/*
-!src/main/resources/static/news-images/.gitkeep
-src/main/resources/static/cover-images/*
-!src/main/resources/static/cover-images/.gitkeep
-src/main/resources/static/backgrounds/*
-!src/main/resources/static/backgrounds/.gitkeep
+# Secrets and machine-local environment
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
 
-# Local Maven repository
-.m2/
+# Frontend dependencies and build outputs
+v1_f/node_modules/
+v1_f/dist/
+v1_f/build/
+v1_f/.vite/
+v1_f/*.tsbuildinfo
+
+# Backend dependencies, build outputs, and runtime data
+v1/target/
+v1/.m2/
+v1/.mvn/codex-settings.xml
+v1/HELP.md
+v1/.env.local.properties
+v1/music-library/
+v1/storage/
+v1/uploads/
+v1/avatar/
+v1/avatars/
+v1/background/
+v1/backgrounds/
+v1/news-images/
+v1/cover-images/
+v1/project-covers/
+v1/project-files/
+
+# Runtime/static media mirrors
+**/storage/
+**/music-library/
+**/uploads/
+**/avatars/
+**/backgrounds/
+**/news-images/
+**/cover-images/
+**/project-files/
+v1/src/main/resources/static/resources/
+
+# Database dumps and local DB files
+*.sql
+database-fields-*.md
+*.db
+*.sqlite
+*.sqlite3
+*.mv.db
+*.trace.db

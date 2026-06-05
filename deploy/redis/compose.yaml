@@ -1,0 +1,43 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: yaozher-redis
+    restart: unless-stopped
+    environment:
+      YAOZHER_REDIS_PASSWORD: ${YAOZHER_REDIS_PASSWORD:?Set YAOZHER_REDIS_PASSWORD}
+    command:
+      - sh
+      - -c
+      - exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$${YAOZHER_REDIS_PASSWORD}"
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - yaozher-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${YAOZHER_REDIS_PASSWORD}\" redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: yaozher-redisinsight
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      RI_ENCRYPTION_KEY: ${YAOZHER_REDISINSIGHT_ENCRYPTION_KEY:?Set YAOZHER_REDISINSIGHT_ENCRYPTION_KEY}
+      RI_REDIS_HOST: redis
+      RI_REDIS_PORT: 6379
+      RI_REDIS_ALIAS: yaozher-redis
+      RI_REDIS_PASSWORD: ${YAOZHER_REDIS_PASSWORD:?Set YAOZHER_REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:5540:5540"
+    volumes:
+      - yaozher-redisinsight-data:/data
+
+volumes:
+  yaozher-redis-data:
+  yaozher-redisinsight-data:

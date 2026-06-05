@@ -1,0 +1,102 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# Local music library
+music-library/
+
+# Runtime image/media uploads
+storage/
+uploads/
+avatar/
+avatars/
+background/
+backgrounds/
+news-images/
+cover-images/
+project-covers/
+project-files/
+
+# Bundled static image folders; keep folder placeholders only.
+src/main/resources/static/avatars/*
+!src/main/resources/static/avatars/.gitkeep
+src/main/resources/static/news-images/*
+!src/main/resources/static/news-images/.gitkeep
+src/main/resources/static/cover-images/*
+!src/main/resources/static/cover-images/.gitkeep
+src/main/resources/static/backgrounds/*
+!src/main/resources/static/backgrounds/.gitkeep
+
+# Local Maven repository
+.m2/
+.mvn/codex-settings.xml
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.pid
+*.stackdump
+hs_err_pid*
+replay_pid*
+
+# Local secrets and machine-specific overrides
+.env
+.env.*
+!.env.example
+.env.local.properties
+*.local
+*.local.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Local installers/downloads
+.downloads/
+*.exe
+*.msi
+*.dmg
+*.pkg
+*.iso
+
+# Database state is managed outside this repository
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+*.mv.db
+*.trace.db
