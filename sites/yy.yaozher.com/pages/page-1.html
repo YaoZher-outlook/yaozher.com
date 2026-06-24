@@ -6,5 +6,245 @@
   <title>Page 1</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="blank-page"></body>
+<body class="blank-page">
+  <h1>
+    一元多项式
+  </h1>
+  <p>
+    #include <iostream>
+using namespace std;
+
+// 结点定义
+struct TNode {
+    int x;      // 系数
+    int m;      // 幂次
+    TNode* next; // 注意：原代码中写的是TNode next，应该是TNode* next
+    
+    TNode(int coeff = 0, int power = 0) : x(coeff), m(power), next(nullptr) {}
+};
+
+// 单链表数据类型定义
+struct Link {
+    TNode* head;  // 注意：原代码中写的是TNode head，应该是指针
+    int Num;
+    
+    Link() : head(nullptr), Num(0) {}
+};
+
+// 通过输入构建表达一元多项式的单链表
+void InitLink(Link &_pt) {
+    int n;
+    cin >> n;
+    
+    if (n <= 0) {
+        _pt.head = nullptr;
+        _pt.Num = 0;
+        return;
+    }
+    
+    // 临时存储所有项
+    TNode** temp = new TNode*[n];
+    for (int i = 0; i < n; i++) {
+        int coeff, power;
+        cin >> coeff >> power;
+        temp[i] = new TNode(coeff, power);
+    }
+    
+    // 冒泡排序，按幂次升序排列
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (temp[j]->m > temp[j + 1]->m) {
+                TNode* t = temp[j];
+                temp[j] = temp[j + 1];
+                temp[j + 1] = t;
+            }
+        }
+    }
+    
+    // 合并同类项并构建链表
+    _pt.head = nullptr;
+    TNode* tail = nullptr;
+    _pt.Num = 0;
+    
+    for (int i = 0; i < n; i++) {
+        if (temp[i]->x == 0) {
+            delete temp[i];
+            continue;
+        }
+        
+        // 合并相同幂次
+        int coeffSum = temp[i]->x;
+        int power = temp[i]->m;
+        while (i + 1 < n && temp[i + 1]->m == power) {
+            coeffSum += temp[i + 1]->x;
+            delete temp[i + 1];
+            i++;
+        }
+        
+        if (coeffSum != 0) {
+            TNode* newNode = new TNode(coeffSum, power);
+            if (_pt.head == nullptr) {
+                _pt.head = newNode;
+                tail = newNode;
+            } else {
+                tail->next = newNode;
+                tail = newNode;
+            }
+            _pt.Num++;
+        }
+        delete temp[i];
+    }
+    
+    delete[] temp;
+}
+
+// 向单链表中插入元素，插入位置为_p后面
+void Insert(Link &_pt, TNode* _p, int _x, int _m) {
+    TNode* newNode = new TNode(_x, _m);
+    
+    if (_p == nullptr) {
+        // 插入到头部
+        newNode->next = _pt.head;
+        _pt.head = newNode;
+    } else {
+        newNode->next = _p->next;
+        _p->next = newNode;
+    }
+    _pt.Num++;
+}
+
+// 从单链表中删除某个结点_p
+void Delete(Link &_pt, TNode* _p) {
+    if (_p == nullptr || _pt.head == nullptr) return;
+    
+    // 如果要删除的是头结点
+    if (_pt.head == _p) {
+        _pt.head = _p->next;
+        delete _p;
+        _pt.Num--;
+        return;
+    }
+    
+    // 找到前驱结点
+    TNode* prev = _pt.head;
+    while (prev != nullptr && prev->next != _p) {
+        prev = prev->next;
+    }
+    
+    if (prev != nullptr) {
+        prev->next = _p->next;
+        delete _p;
+        _pt.Num--;
+    }
+}
+
+// 摧毁单链表，即释放空间
+void Destroy(Link &_pt) {
+    TNode* current = _pt.head;
+    while (current != nullptr) {
+        TNode* next = current->next;
+        delete current;
+        current = next;
+    }
+    _pt.head = nullptr;
+    _pt.Num = 0;
+}
+
+// 输出一元多项式
+void Output(Link &_pt) {
+    if (_pt.head == nullptr || _pt.Num == 0) {
+        cout << "0 0";
+        return;
+    }
+    
+    TNode* current = _pt.head;
+    bool first = true;
+    
+    while (current != nullptr) {
+        if (!first) {
+            cout << " ";
+        }
+        cout << current->x << " " << current->m;
+        first = false;
+        current = current->next;
+    }
+}
+
+// 求一元多项式_pt1,_pt2的和，结果存储在_pt1中
+void Add(Link &_pt1, Link &_pt2) {
+    TNode* p = _pt1.head;
+    TNode* q = _pt2.head;
+    TNode* prev = nullptr;  // 记录p的前驱结点
+    
+    while (p && q) {
+        if (p->m < q->m) {
+            prev = p;
+            p = p->next;
+        } else if (p->m > q->m) {
+            // 将q结点插入到p之前
+            TNode* newNode = new TNode(q->x, q->m);
+            if (prev == nullptr) {
+                // 插入到头部
+                newNode->next = _pt1.head;
+                _pt1.head = newNode;
+                prev = newNode;
+            } else {
+                newNode->next = prev->next;
+                prev->next = newNode;
+                prev = newNode;
+            }
+            _pt1.Num++;
+            q = q->next;
+        } else {
+            // 幂次相等，系数相加
+            p->x += q->x;
+            if (p->x == 0) {
+                // 系数为0，删除该结点
+                TNode* toDelete = p;
+                if (prev == nullptr) {
+                    _pt1.head = p->next;
+                    p = p->next;
+                    prev = nullptr;
+                } else {
+                    prev->next = p->next;
+                    p = p->next;
+                }
+                delete toDelete;
+                _pt1.Num--;
+            } else {
+                prev = p;
+                p = p->next;
+            }
+            q = q->next;
+        }
+    }
+    
+    // 将剩余的q结点添加到_pt1末尾
+    while (q) {
+        TNode* newNode = new TNode(q->x, q->m);
+        if (prev == nullptr) {
+            // _pt1为空
+            _pt1.head = newNode;
+            prev = newNode;
+        } else {
+            prev->next = newNode;
+            prev = newNode;
+        }
+        _pt1.Num++;
+        q = q->next;
+    }
+}
+
+int main() {
+    Link pt1, pt2;
+    InitLink(pt1);
+    InitLink(pt2);
+    Add(pt1, pt2);
+    Output(pt1);
+    Destroy(pt1);
+    Destroy(pt2);
+    return 0;
+}
+  </p>
+</body>
 </html>
