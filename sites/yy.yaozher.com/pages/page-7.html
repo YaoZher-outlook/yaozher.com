@@ -6,5 +6,106 @@
   <title>Page 7</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="blank-page"></body>
+<body class="blank-page">
+  <h1>
+物物交换
+  </h1>
+  <p>
+    import java.util.*;
+
+public class Main { // 类名建议大写
+    public static void main(String[] args) { // 必须包含 String[] args
+        Scanner sc = new Scanner(System.in);
+        
+        if (!sc.hasNextInt()) return;
+        int n = sc.nextInt();
+        int m = sc.nextInt();
+
+        // 1. 初始化图，使用较大的值代表不可达
+        int INF = 0x3f3f3f3f; 
+        int[][] graph = new int[n][n];
+        for (int i = 0; i < n; i++) {
+            Arrays.fill(graph[i], INF);
+            graph[i][i] = 0;
+        }
+
+        Map<String, Integer> nameToIndex = new HashMap<>();
+        String[] indexToName = new String[n];
+        int currentIndex = 0;
+
+        // 2. 构建邻接矩阵
+        for (int i = 0; i < m; i++) {
+            String uName = sc.next();
+            String vName = sc.next();
+            int weight = sc.nextInt();
+
+
+            if (!nameToIndex.containsKey(vName)) {
+                nameToIndex.put(vName, currentIndex);
+                indexToName[currentIndex++] = vName;
+            }
+
+            int u = nameToIndex.get(uName);
+            int v = nameToIndex.get(vName);
+            graph[u][v] = weight;
+        }
+
+        String startNodeName = sc.next();
+        String endNodeName = sc.next();
+        
+        // 防止输入不存在的节点名
+        if (!nameToIndex.containsKey(startNodeName) || !nameToIndex.containsKey(endNodeName)) {
+            return;
+        }
+        
+        int start = nameToIndex.get(startNodeName);
+        int end = nameToIndex.get(endNodeName);
+
+        // 3. Dijkstra 核心算法
+        int[] dis = new int[n];
+        int[] parent = new int[n];
+        boolean[] visited = new boolean[n];
+
+        Arrays.fill(dis, INF);
+        Arrays.fill(parent, -1);
+        dis[start] = 0;
+
+        for (int i = 0; i < n; i++) {
+            int u = -1; // 修正：初始化必须为 -1
+            for (int j = 0; j < n; j++) {
+                if (!visited[j] && (u == -1 || dis[j] < dis[u])) {
+                    u = j;
+                }
+            }
+
+            if (u == -1 || dis[u] == INF) break;
+            visited[u] = true;
+
+            for (int v = 0; v < n; v++) {
+                if (!visited[v] && graph[u][v] != INF && dis[u] + graph[u][v] < dis[v]) {
+                    dis[v] = dis[u] + graph[u][v];
+                    parent[v] = u;
+                }
+            }
+        }
+
+        // 4. 输出处理
+        if (dis[end] == INF) {
+            System.out.println("无法完成交换");
+        } else {
+            printPath(end, parent, indexToName);
+          System.out.println();
+            System.out.println(dis[end]); // 最后打印总金额
+        }
+    }
+
+    // 递归打印路径，保持在一行
+    private static void printPath(int target, int[] parent, String[] names) {
+        if (target == -1) return;
+        printPath(parent[target], parent, names);
+        System.out.print(names[target] + " "); // 使用 print 而不是 println
+    }
+}
+  </p>
+</body>
 </html>
