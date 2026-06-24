@@ -6,5 +6,108 @@
   <title>Page 6</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="blank-page"></body>
+<body class="blank-page">
+  <h1>
+最短跳数
+  </h1>
+  <p>
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StreamTokenizer;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+
+public class Main {
+    // 链式前向星：用数组模拟邻接表，节省内存和对象创建时间
+    static int[] head;   // head[u] 存储节点 u 的第一条边的索引
+    static int[] next;   // next[e] 存储编号为 e 的边的下一条边的索引
+    static int[] to;     // to[e] 存储编号为 e 的边指向的节点
+    static int edgeCount = 0;
+
+    // 映射不连续的节点 ID
+    static Map<Integer, Integer> idMap = new HashMap<>();
+    static int nodeCount = 0;
+
+    public static void main(String[] args) throws IOException {
+        // 快速输入
+        StreamTokenizer st = new StreamTokenizer(new BufferedReader(new InputStreamReader(System.in)));
+        
+        if (st.nextToken() == StreamTokenizer.TT_EOF) return;
+        int n = (int) st.nval; // 边数
+        st.nextToken();
+        int s = (int) st.nval; // 起点 ID
+        st.nextToken();
+        int d = (int) st.nval; // 终点 ID
+
+        // 预分配空间：无向图 n 条边需要 2n 的空间
+        head = new int[2 * n + 2];
+        next = new int[2 * n + 2];
+        to = new int[2 * n + 2];
+        Arrays.fill(head, -1);
+
+        // 读入边
+        for (int i = 0; i < n; i++) {
+            st.nextToken();
+            int uRaw = (int) st.nval;
+            st.nextToken();
+            int vRaw = (int) st.nval;
+
+            int u = getMappedId(uRaw);
+            int v = getMappedId(vRaw);
+
+            // 建立无向边
+            addEdge(u, v);
+            addEdge(v, u);
+        }
+
+        // 执行 BFS
+        System.out.println(bfs(getMappedId(s), getMappedId(d)));
+    }
+
+    // 将原始节点 ID 映射为从 0 开始的连续索引
+    private static int getMappedId(int rawId) {
+        if (!idMap.containsKey(rawId)) {
+            idMap.put(rawId, nodeCount++);
+        }
+        return idMap.get(rawId);
+    }
+
+    private static void addEdge(int u, int v) {
+        to[edgeCount] = v;
+        next[edgeCount] = head[u];
+        head[u] = edgeCount++;
+    }
+
+    private static int bfs(int start, int end) {
+        if (start == end) return 0;
+        
+        Queue<Integer> queue = new LinkedList<>();
+        int[] dist = new int[nodeCount]; // 存储到起点的距离
+        Arrays.fill(dist, -1);
+
+        queue.offer(start);
+        dist[start] = 0;
+
+        while (!queue.isEmpty()) {
+            int curr = queue.poll();
+
+            // 遍历当前节点的所有邻居
+            for (int i = head[curr]; i != -1; i = next[i]) {
+                int neighbor = to[i];
+                if (dist[neighbor] == -1) { // 如果未访问过
+                    dist[neighbor] = dist[curr] + 1;
+                    if (neighbor == end) return dist[neighbor];
+                    queue.offer(neighbor);
+                }
+            }
+        }
+        return -1;
+    }
+}
+  </p>
+</body>
 </html>
