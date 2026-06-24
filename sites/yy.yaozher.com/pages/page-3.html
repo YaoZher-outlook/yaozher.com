@@ -6,5 +6,168 @@
   <title>Page 3</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="blank-page"></body>
+<body class="blank-page">
+  <h1>栈和队列的操作</h1>
+  <p>
+    #include <cstdio>
+#include <cstdlib>
+
+/* 顺序栈的定义及操作 */
+typedef int SElemSet;
+#define NIL -1
+typedef int Position; /* 整型下标，表示元素的位置 */
+typedef struct StackNode *Stack;
+struct StackNode {
+    int capacity;     /* 顺序栈的容量 */
+    Position top;     /* 顺序栈的栈顶指针，初始化为-1 */
+    SElemSet *data;    /* 存储数据的数组 */
+};
+void InitStack(Stack stack, int kMaxSize);
+bool IsFull(Stack stack);
+bool IsEmpty(Stack stack);
+void Push (Stack stack, SElemSet x);
+SElemSet Top (Stack stack);
+void Pop (Stack stack);
+void DestroyStack(Stack stack);
+/* 顺序栈的定义及操作 结束 */
+
+/* 两个栈组成队列的定义及操作 */
+typedef struct QNode *Queue;
+struct QNode { /* 队列由两个栈组成 */
+	Stack s1, s2;
+};
+typedef struct DeQNode *DeQElem;
+struct DeQNode { /* DeQueue返回值 */
+	SElemSet x;  /* 出队元素的值 */
+	int time;    /* 出队耗费的时间 */
+};
+void InitQueue(Queue queue, int kMaxSize);
+void EnQueue(Queue queue, SElemSet x);
+bool IsQEmpty(Queue queue);
+void DeQueue(Queue queue, DeQElem elem);
+void DestroyQueue(Queue queue);
+/* 两个栈组成队列的定义及操作 结束 */
+
+int main(void)
+{
+	int i, n;
+	SElemSet x;
+	char cmd;
+	DeQElem elem;
+	Queue queue;
+	
+	if (scanf("%d\n", &n) != 1) return 0;
+	queue = (Queue)malloc(sizeof(struct QNode));
+	InitQueue(queue, n); /* 队列初始化 */
+	elem = (DeQElem)malloc(sizeof(struct DeQNode));
+	for (i=0; i<n; i++) {
+		scanf("%c", &cmd); // 读取操作符
+		if (cmd=='I') { /* 如果是入队操作 */
+			scanf("%d\n", &x);
+			EnQueue(queue, x);
+		}
+		else if (cmd=='O') { /* 如果是出队操作 */
+            scanf("\n"); // 吸收掉出队操作后的换行符
+			if (IsQEmpty(queue)) printf("ERROR\n");
+			else {
+				DeQueue(queue, elem);
+				printf("%d %d\n", elem->x, elem->time);
+			}
+		}
+	}
+	DestroyQueue(queue);
+	free(elem);
+	
+	return 0;
+}
+
+void InitStack(Stack stack, int kMaxSize)
+{ /* 初始化一个大小为kMaxSize的顺序栈 */
+	stack->capacity = kMaxSize;
+	stack->top = -1;
+	stack->data = (SElemSet *)malloc(sizeof(SElemSet)*kMaxSize);
+}
+
+bool IsFull(Stack stack)
+{ /* 判断栈是否已满 */
+	return stack->top == stack->capacity - 1;
+}
+
+bool IsEmpty(Stack stack)
+{ /* 判断栈是否为空 */
+	return stack->top == -1;
+}
+
+void Push (Stack stack, SElemSet x)
+{ /* 入栈 */
+	if (!IsFull(stack)) {
+		stack->data[++(stack->top)] = x;
+	}
+}
+
+SElemSet Top (Stack stack)
+{ /* 取栈顶 */ 
+	if (!IsEmpty(stack)) {
+		return stack->data[stack->top];
+	}
+	return NIL;
+}
+
+void Pop (Stack stack)
+{ /* 出栈 */
+	if (!IsEmpty(stack)) {
+		stack->top--;
+	}
+}
+
+void DestroyStack(Stack stack)
+{ /* 释放栈空间 */
+	if (stack) {
+		if (stack->data) {
+			free(stack->data);
+		}
+		free(stack);
+	}
+}
+
+void InitQueue(Queue queue, int kMaxSize)
+{ /* 初始化两个栈 */
+	queue->s1 = (Stack)malloc(sizeof(struct StackNode));
+	queue->s2 = (Stack)malloc(sizeof(struct StackNode));
+	InitStack(queue->s1, kMaxSize);
+	InitStack(queue->s2, kMaxSize);
+}
+
+void EnQueue(Queue queue, SElemSet x)
+{ /* 入队，即将x插入第1个栈 */
+	Push(queue->s1, x);
+}
+
+bool IsQEmpty(Queue queue)
+{ /* 两个栈均为空时，队列为空 */ 
+	return (IsEmpty(queue->s1) && IsEmpty(queue->s2));
+}
+
+void DeQueue(Queue queue, DeQElem elem)
+{ /* 将出队元素及其出队所用时间存储在elem中，并删除该元素 */
+	elem->time = 0; /* 初始化时间 */
+	if (IsEmpty(queue->s2)==true) { /* 若s2是空的 */
+		while (IsEmpty(queue->s1)==false) {
+			Push(queue->s2, Top(queue->s1)); /* 将s1导入s2 */
+			Pop(queue->s1); /* 从s1中删去 */
+			elem->time += 2; /* 一出一进用2个单位时间 */
+		}
+	}
+	elem->x = Top(queue->s2); /* 取出s2栈顶元素 */
+	Pop(queue->s2); /* 从s2中删除该元素 */
+	elem->time++; /* 出栈操作用1个单位时间 */
+}
+
+void DestroyQueue(Queue queue)
+{ /* 释放队列空间 */
+
+	free(queue);
+}
+  </p>
+</body>
 </html>
