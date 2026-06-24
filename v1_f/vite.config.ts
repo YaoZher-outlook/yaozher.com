@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const backendTarget = process.env.VITE_BACKEND_BASE ?? 'http://localhost:1004'
+const backendTarget = process.env.VITE_BACKEND_BASE ?? 'http://localhost:21004'
 const backendWsTarget = backendTarget.replace(/^http/, 'ws')
 
 export default defineConfig({
@@ -17,7 +17,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 8020,
+    port: 28020,
     strictPort: true,
     proxy: {
       // REST APIs (public + auth)
@@ -72,7 +72,7 @@ export default defineConfig({
   },
   preview: {
     host: '0.0.0.0',
-    port: 8200,
+    port: 38200,
     strictPort: true,
   },
   build: {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { Check, Circle, Eye, ImageOff, ImageUp, KeyRound, Languages, Palette, Save, Shield, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -89,6 +89,7 @@ function WheelPicker<T extends string>({
 }) {
   const wheelRef = useRef<HTMLDivElement | null>(null)
   const moveRef = useRef<(direction: 1 | -1) => void>(() => undefined)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const rowHeight = 38
   const activeIndex = Math.max(0, options.findIndex((o) => o.value === value))
 
@@ -109,11 +110,31 @@ function WheelPicker<T extends string>({
     return () => el.removeEventListener('wheel', onWheel)
   }, [])
 
+  const onTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (!touch) return
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const onTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    if (Math.abs(deltaY) < 28 || Math.abs(deltaY) < Math.abs(deltaX)) return
+    moveRef.current(deltaY < 0 ? 1 : -1)
+  }
+
   return (
     <div
       ref={wheelRef}
       tabIndex={0}
-      className="relative h-32 overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
+      className="relative h-32 touch-none overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
+      onTouchStart={onTouchStart}
+      onTouchMove={(event) => event.preventDefault()}
+      onTouchEnd={onTouchEnd}
       onKeyDown={(e) => {
         if (e.key === 'ArrowDown') moveRef.current(1)
         if (e.key === 'ArrowUp') moveRef.current(-1)
@@ -172,6 +193,7 @@ function BackgroundPresetWheel({
   const wheelRef = useRef<HTMLDivElement | null>(null)
   const moveRef = useRef<(direction: 1 | -1) => void>(() => undefined)
   const wheelLockRef = useRef(0)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const foundIndex = options.findIndex((o) => o.url === value)
   const activeIndex = Math.max(0, foundIndex)
   const itemWidth = 176
@@ -192,6 +214,24 @@ function BackgroundPresetWheel({
     if (delta !== 0) moveRef.current(delta > 0 ? 1 : -1)
   }
 
+  const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (!touch) return
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY
+    if (Math.abs(delta) < 32) return
+    moveRef.current(delta < 0 ? 1 : -1)
+  }
+
   if (!options.length) {
     return <div className="rounded-md border border-[var(--glass-border)] px-3 py-3 text-sm text-[rgb(var(--muted))]">No preset backgrounds found.</div>
   }
@@ -200,8 +240,11 @@ function BackgroundPresetWheel({
     <div
       ref={wheelRef}
       tabIndex={0}
-      className="relative h-40 overscroll-contain overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
+      className="relative h-40 touch-none overscroll-contain overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
       onWheelCapture={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={(event) => event.preventDefault()}
+      onTouchEnd={handleTouchEnd}
       onKeyDown={(e) => {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') moveRef.current(1)
         if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') moveRef.current(-1)
@@ -771,7 +814,7 @@ export default function SettingsPage() {
               </div>
             </Row>
 
-            <Row label="大小" hint="控制动态线条覆盖高度，最大可超过整个屏幕。">
+            <Row label="宽度" hint="主要控制动态线条的横向铺展范围，避免在竖向上压满屏幕。">
               <div className="flex items-center gap-3">
                 <input type="range" min={0.35} max={1.6} step={0.01} value={musicBgSize} onChange={(e) => setMusicBgSize(Number(e.target.value))} className="min-w-0 flex-1 accent-[var(--led-color)]" />
                 <span className="w-12 text-right text-xs text-[rgb(var(--muted))]">{Math.round(musicBgSize * 100)}%</span>
@@ -880,7 +923,7 @@ export default function SettingsPage() {
             </Section>
           ) : null}
 
-          <div className="glass sticky bottom-4 flex items-center justify-between rounded-md px-4 py-3">
+          <div className="glass sticky bottom-[calc(5.75rem+env(safe-area-inset-bottom))] flex flex-col items-stretch justify-between gap-3 rounded-md px-4 py-3 md:bottom-4 md:flex-row md:items-center">
             <div className="text-xs text-[rgb(var(--muted))]">
               {canSave ? (zh ? `将保存到 ${user.nickname} 的配置` : `Saving to ${user.nickname}`) : copy.needLogin}
             </div>

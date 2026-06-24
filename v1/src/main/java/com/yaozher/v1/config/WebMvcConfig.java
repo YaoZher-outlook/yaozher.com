@@ -2,12 +2,14 @@ package com.yaozher.v1.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 @RequiredArgsConstructor
@@ -17,6 +19,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
+        CacheControl staticAssetCache = CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic();
+        CacheControl mediaAssetCache = CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic();
+
         // uploads
         String uploadDir = appProperties.getUploadDir();
         if (!StringUtils.hasText(uploadDir)) {
@@ -24,7 +29,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String uploadLocation = fileLocation(uploadDir);
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(uploadLocation);
+                .addResourceLocations(uploadLocation)
+                .setCacheControl(staticAssetCache);
 
         // avatars
         String avatarDir = appProperties.getAvatarDir();
@@ -33,7 +39,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String avatarLocation = fileLocation(avatarDir);
         registry.addResourceHandler("/avatars/**")
-                .addResourceLocations(avatarLocation, "classpath:/static/avatars/");
+                .addResourceLocations(avatarLocation, "classpath:/static/avatars/")
+                .setCacheControl(staticAssetCache);
 
         // backgrounds
         String backgroundDir = appProperties.getBackgroundDir();
@@ -43,7 +50,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         String backgroundLocation = fileLocation(backgroundDir);
         String legacyBackgroundLocation = fileLocation("./background");
         registry.addResourceHandler("/backgrounds/**")
-                .addResourceLocations(backgroundLocation, legacyBackgroundLocation);
+                .addResourceLocations(backgroundLocation, legacyBackgroundLocation)
+                .setCacheControl(mediaAssetCache);
 
         String backgroundPresetDir = appProperties.getBackgroundPresetDir();
         if (!StringUtils.hasText(backgroundPresetDir)) {
@@ -51,7 +59,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String backgroundPresetLocation = fileLocation(backgroundPresetDir);
         registry.addResourceHandler("/background-presets/**")
-                .addResourceLocations(backgroundPresetLocation);
+                .addResourceLocations(backgroundPresetLocation)
+                .setCacheControl(mediaAssetCache);
 
         // news images
         String newsImageDir = appProperties.getNewsImageDir();
@@ -60,7 +69,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String newsImageLocation = fileLocation(newsImageDir);
         registry.addResourceHandler("/news-images/**")
-                .addResourceLocations(newsImageLocation, "classpath:/static/news-images/");
+                .addResourceLocations(newsImageLocation, "classpath:/static/news-images/")
+                .setCacheControl(staticAssetCache);
 
         String projectCoverDir = appProperties.getProjectCoverDir();
         if (!StringUtils.hasText(projectCoverDir)) {
@@ -69,9 +79,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
         String projectCoverLocation = fileLocation(projectCoverDir);
         String legacyProjectCoverLocation = fileLocation("./storage/assets/project-covers");
         registry.addResourceHandler("/cover-images/**")
-                .addResourceLocations(projectCoverLocation, "classpath:/static/cover-images/");
+                .addResourceLocations(projectCoverLocation, "classpath:/static/cover-images/")
+                .setCacheControl(mediaAssetCache);
         registry.addResourceHandler("/project-covers/**")
-                .addResourceLocations(legacyProjectCoverLocation, projectCoverLocation, "classpath:/static/cover-images/");
+                .addResourceLocations(legacyProjectCoverLocation, projectCoverLocation, "classpath:/static/cover-images/")
+                .setCacheControl(mediaAssetCache);
 
         String projectFileDir = appProperties.getProjectFileDir();
         if (!StringUtils.hasText(projectFileDir)) {
@@ -80,9 +92,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
         String projectFileLocation = fileLocation(projectFileDir);
         String legacyProjectFileLocation = fileLocation("./storage/assets/project-files");
         registry.addResourceHandler("/resources/**")
-                .addResourceLocations(projectFileLocation);
+                .addResourceLocations(projectFileLocation)
+                .setCacheControl(mediaAssetCache);
         registry.addResourceHandler("/project-files/**")
-                .addResourceLocations(legacyProjectFileLocation, projectFileLocation);
+                .addResourceLocations(legacyProjectFileLocation, projectFileLocation)
+                .setCacheControl(mediaAssetCache);
 
         String musicDir = appProperties.getMusicDir();
         if (!StringUtils.hasText(musicDir)) {
@@ -90,7 +104,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         String musicLocation = fileLocation(musicDir);
         registry.addResourceHandler("/music/**")
-                .addResourceLocations(musicLocation);
+                .addResourceLocations(musicLocation)
+                .setCacheControl(mediaAssetCache);
     }
 
     private String fileLocation(String dir) {

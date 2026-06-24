@@ -124,7 +124,7 @@ export default function AuthPanel({ anchor }: { anchor?: { left: number; top: nu
 
   return (
     <div
-      className="fixed z-50 w-[360px] rounded-2xl p-4 glass"
+      className="fixed z-[95] w-[min(360px,calc(100vw-24px))] rounded-2xl p-4 glass"
       style={{ left: anchor?.left ?? 24, top: anchor?.top ?? 24 }}
       role="dialog"
       aria-label="login"

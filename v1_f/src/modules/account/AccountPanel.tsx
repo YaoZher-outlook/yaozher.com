@@ -91,7 +91,7 @@ export default function AccountPanel({ anchor }: { anchor?: { left: number; top:
 
   return (
     <div
-      className="fixed z-50 w-[380px] rounded-2xl p-4 glass"
+      className="fixed z-[95] w-[min(380px,calc(100vw-24px))] rounded-2xl p-4 glass"
       style={{ left: anchor?.left ?? 'calc(8rem + 12px)', top: anchor?.top ?? 18 }}
       role="dialog"
       aria-label="account"

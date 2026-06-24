@@ -1,4 +1,5 @@
 import { API_BASE, getResult } from '@/api/http'
+import { cachedRequest } from '@/api/cache'
 import type { Result } from '@/types/api'
 import type { AssetOptionVo } from '@/types/assets'
 
@@ -13,5 +14,9 @@ export function resolveAssetUrl(url?: string | null, version?: number | string |
 }
 
 export function listBackgroundPresets(): Promise<Result<AssetOptionVo[]>> {
-  return getResult<AssetOptionVo[]>('/api/assets/background-presets')
+  return cachedRequest(
+    'assets:background-presets',
+    10 * 60 * 1000,
+    () => getResult<AssetOptionVo[]>('/api/assets/background-presets'),
+  )
 }

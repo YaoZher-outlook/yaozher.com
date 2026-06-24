@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import '@/styles/index.css'
 import App from '@/App'
+import AppErrorBoundary from '@/components/AppErrorBoundary'
 import { initI18n } from '@/i18n'
 
 initI18n()
@@ -11,7 +12,9 @@ initI18n()
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </BrowserRouter>
   </React.StrictMode>,
 )

@@ -3,7 +3,10 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 $ComposeFile = Join-Path $Root 'deploy\redis\compose.yaml'
 $LocalProperties = Join-Path $Root 'v1\.env.local.properties'
+$RedisPort = '46379'
+$RedisInsightPort = '45540'
 $Docker = Get-Command docker.exe -ErrorAction SilentlyContinue
+
 if (-not $Docker) {
     $knownDockerPaths = @(
         'E:\Environment\Docker\DockerDesktop\resources\bin\docker.exe',
@@ -17,11 +20,9 @@ if (-not $Docker) {
 if (-not $Docker) {
     throw 'docker.exe was not found. Install Docker Desktop, then run this script again.'
 }
-
 if (-not (Test-Path $ComposeFile -PathType Leaf)) {
     throw "Redis compose file was not found: $ComposeFile"
 }
-
 if (-not (Test-Path $LocalProperties -PathType Leaf)) {
     throw "Local secrets file was not found: $LocalProperties"
 }
@@ -42,6 +43,9 @@ if (-not $insightEncryptionKeyLine) {
 
 $env:YAOZHER_REDIS_PASSWORD = $passwordLine.Substring($passwordLine.IndexOf('=') + 1)
 $env:YAOZHER_REDISINSIGHT_ENCRYPTION_KEY = $insightEncryptionKeyLine.Substring($insightEncryptionKeyLine.IndexOf('=') + 1)
+$env:YAOZHER_REDIS_PORT = $RedisPort
+$env:YAOZHER_REDISINSIGHT_PORT = $RedisInsightPort
+
 if ([string]::IsNullOrWhiteSpace($env:YAOZHER_REDIS_PASSWORD)) {
     throw 'YAOZHER_REDIS_PASSWORD must not be blank.'
 }
@@ -91,12 +95,15 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Redis compose start failed with exit code $LASTEXITCODE."
     }
-    Write-Host 'Yaozher Redis is running on 127.0.0.1:6379.'
-    Write-Host 'RedisInsight is available at http://127.0.0.1:5540.'
+
+    Write-Host "Yaozher Redis is running on 127.0.0.1:$RedisPort."
+    Write-Host "RedisInsight is available at http://127.0.0.1:$RedisInsightPort."
 } finally {
     if ($null -ne $originalPath) {
         $env:PATH = $originalPath
     }
     Remove-Item Env:YAOZHER_REDIS_PASSWORD -ErrorAction SilentlyContinue
     Remove-Item Env:YAOZHER_REDISINSIGHT_ENCRYPTION_KEY -ErrorAction SilentlyContinue
+    Remove-Item Env:YAOZHER_REDIS_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:YAOZHER_REDISINSIGHT_PORT -ErrorAction SilentlyContinue
 }

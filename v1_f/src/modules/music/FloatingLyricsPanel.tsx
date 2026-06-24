@@ -5,24 +5,32 @@ import { resolveAssetUrl } from '@/api/assets'
 import { useAppStore } from '@/store/appStore'
 import { activeLyricIndex, fallbackLyrics, lyricVisualStyle, lyricWindow, parseLyrics, type LyricLine } from './lyrics'
 
-const PANEL_WIDTH = 420
+const PANEL_MAX_WIDTH = 420
 const PANEL_MIN_HEIGHT = 180
 const PANEL_VERTICAL_MARGIN = 24
-const PANEL_DEFAULT_Y_RATIO = 0.34
+const PANEL_DEFAULT_Y_RATIO = 0.24
+
+function panelWidth() {
+  if (typeof window === 'undefined') return PANEL_MAX_WIDTH
+  return Math.min(PANEL_MAX_WIDTH, Math.max(280, window.innerWidth - 16))
+}
 
 function clampPanelPosition(x: number, y: number, height = PANEL_MIN_HEIGHT) {
-  const maxX = Math.max(0, window.innerWidth - PANEL_WIDTH)
+  const width = panelWidth()
+  const margin = window.innerWidth <= 767 ? 8 : 0
+  const maxX = Math.max(margin, window.innerWidth - width - margin)
   const maxY = Math.max(0, window.innerHeight - height - PANEL_VERTICAL_MARGIN)
   return {
-    x: Math.max(0, Math.min(maxX, x)),
+    x: Math.max(margin, Math.min(maxX, x)),
     y: Math.max(0, Math.min(maxY, y)),
   }
 }
 
 function defaultPanelPosition(height = PANEL_MIN_HEIGHT) {
   if (typeof window === 'undefined') return { x: 0, y: PANEL_VERTICAL_MARGIN }
+  const width = panelWidth()
   return clampPanelPosition(
-    window.innerWidth - PANEL_WIDTH,
+    window.innerWidth - width - (window.innerWidth <= 767 ? 8 : 0),
     Math.round((window.innerHeight - height) * PANEL_DEFAULT_Y_RATIO),
     height,
   )
@@ -180,7 +188,7 @@ export default function FloatingLyricsPanel() {
     <div
       ref={panelRef}
       className={[
-        'group fixed z-[65] w-[420px] rounded-2xl p-4 transition-[background,border-color,box-shadow,backdrop-filter] duration-200',
+        'group fixed z-[35] w-[min(420px,calc(100vw-16px))] rounded-2xl p-4 transition-[background,border-color,box-shadow,backdrop-filter] duration-200',
         locked ? 'border border-transparent shadow-none' : 'border border-[var(--glass-border)] shadow-2xl',
       ].join(' ')}
       style={panelStyle}

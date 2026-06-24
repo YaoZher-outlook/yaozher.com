@@ -275,6 +275,11 @@ function pickRandom<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)]
 }
 
+function prefersLeanClient() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 768px), (prefers-reduced-data: reduce)').matches
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   theme: 'dark',
   ledColor: '#00ffcc',
@@ -519,8 +524,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   bootstrapGuestConfig: async () => {
     try {
-      const presets = await listBackgroundPresets()
-      const backgroundImageUrl = pickRandom(presets.data ?? [])?.url ?? ''
+      const leanClient = prefersLeanClient()
+      const presets = leanClient ? { data: [] } : await listBackgroundPresets()
+      const backgroundImageUrl = leanClient ? '' : pickRandom(presets.data ?? [])?.url ?? ''
       const color = pickRandom(GUEST_LED_COLORS) ?? '#00ffcc'
       const admin = await getAdminConfig().catch(() => ({ data: null }))
       const base = (() => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type WheelEvent as ReactWheelEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { ChevronDown, CloudSun, MapPin } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -40,6 +40,7 @@ export default function HomePage() {
   const heroRef = useRef<HTMLElement | null>(null)
   const newsRef = useRef<HTMLElement | null>(null)
   const wheelLockRef = useRef(0)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const clock = useClock()
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(() => {
     if (typeof user.locationLatitude === 'number' && typeof user.locationLongitude === 'number') {
@@ -132,12 +133,45 @@ export default function HomePage() {
     returnHome()
   }
 
+  const rememberTouch = (event: ReactTouchEvent<HTMLElement>) => {
+    const touch = event.touches[0]
+    if (!touch) return
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const onHeroTouchEnd = (event: ReactTouchEvent<HTMLElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaY = touch.clientY - start.y
+    const deltaX = touch.clientX - start.x
+    if (deltaY < -44 && Math.abs(deltaY) > Math.abs(deltaX) && lockWheel()) enterNews()
+  }
+
+  const onNewsTouchEnd = (event: ReactTouchEvent<HTMLElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaY = touch.clientY - start.y
+    const deltaX = touch.clientX - start.x
+    if (deltaY <= 44 || Math.abs(deltaY) <= Math.abs(deltaX)) return
+
+    const main = newsRef.current?.closest('main')
+    const mainTop = main?.getBoundingClientRect().top ?? 0
+    const newsTop = newsRef.current?.getBoundingClientRect().top ?? 0
+    if (Math.abs(newsTop - mainTop) < 28 && lockWheel()) returnHome()
+  }
+
   return (
-    <div className="-mx-8 -my-8">
+    <div className="-mx-4 -mb-28 -mt-20 md:-mx-8 md:-my-8">
       <section
         ref={heroRef}
-        className="relative grid min-h-screen place-items-center overflow-hidden px-6"
+        className="relative grid min-h-[100dvh] place-items-center overflow-hidden px-6"
         onWheel={onHeroWheel}
+        onTouchStart={rememberTouch}
+        onTouchEnd={onHeroTouchEnd}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,color-mix(in_srgb,var(--led-color)_16%,transparent),transparent_38%)]" />
 
@@ -180,7 +214,7 @@ export default function HomePage() {
         </button>
       </section>
 
-      <section ref={newsRef} className="min-h-screen px-8 py-8" onWheelCapture={onNewsWheel}>
+      <section ref={newsRef} className="min-h-[100dvh] px-4 py-6 md:px-8 md:py-8" onWheelCapture={onNewsWheel} onTouchStart={rememberTouch} onTouchEnd={onNewsTouchEnd}>
         <NewsPage />
       </section>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Blocks,
@@ -22,7 +22,7 @@ import {
 
 import { publishAdminProject } from '@/api/admin'
 import { resolveAssetUrl } from '@/api/assets'
-import { getProjectList } from '@/api/project'
+import { getProjectList, invalidateProjectListCache } from '@/api/project'
 import { useActiveSection } from '@/hooks/useActiveSection'
 import { useAppStore } from '@/store/appStore'
 import type { ProjectDto, ProjectResourceType } from '@/types/project'
@@ -144,7 +144,30 @@ function EmptyState({ label }: { label: string }) {
   )
 }
 
-function CoverThumb({ project, className = '' }: { project?: ProjectDto | null; className?: string }) {
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="glass grid min-h-44 place-items-center rounded-md px-4 text-sm text-[rgb(var(--muted))]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[rgb(var(--muted))]/25 border-t-[color:var(--led-color)]" />
+        <span>{label}</span>
+      </div>
+    </div>
+  )
+}
+
+function isAdminRole(role?: string | null) {
+  return String(role ?? '').toUpperCase().replace(/^ROLE_/, '') === 'ADMIN'
+}
+
+function CoverThumb({
+  project,
+  className = '',
+  eager = false,
+}: {
+  project?: ProjectDto | null
+  className?: string
+  eager?: boolean
+}) {
   const cover = resolveAssetUrl(project?.coverImage)
 
   if (!project || !cover) {
@@ -155,7 +178,24 @@ function CoverThumb({ project, className = '' }: { project?: ProjectDto | null; 
     )
   }
 
-  return <img src={cover} alt={project.name} className={['object-cover', className].join(' ')} />
+  return (
+    <img
+      src={cover}
+      alt={project.name}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchPriority={eager ? 'high' : 'low'}
+      className={['object-cover', className].join(' ')}
+    />
+  )
+}
+
+function CoverPlaceholder({ className = '' }: { className?: string }) {
+  return (
+    <div className={['grid place-items-center bg-white/[0.04] text-[rgb(var(--muted))]', className].join(' ')}>
+      <FolderOpen size={22} />
+    </div>
+  )
 }
 
 function DownloadButton({ project, compact = false }: { project?: ProjectDto | null; compact?: boolean }) {
@@ -195,6 +235,7 @@ function OpenSourceWheel({
   onOpen: (project: ProjectDto) => void
 }) {
   const wheelLockRef = useRef(0)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const activeIndex = Math.max(0, selected ? items.findIndex((item) => item.id === selected.id) : 0)
   const itemWidth = 224
 
@@ -214,13 +255,34 @@ function OpenSourceWheel({
     if (delta !== 0) move(delta > 0 ? 1 : -1)
   }
 
+  const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (!touch) return
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY
+    if (Math.abs(delta) < 34) return
+    move(delta < 0 ? 1 : -1)
+  }
+
   if (!items.length) return <EmptyState label="还没有开源项目资源。" />
 
   return (
     <div
       tabIndex={0}
-      className="relative h-52 overscroll-contain overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
+      className="relative h-52 touch-none overscroll-contain overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
       onWheelCapture={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={(event) => event.preventDefault()}
+      onTouchEnd={handleTouchEnd}
       onKeyDown={(event) => {
         if (event.key === 'ArrowRight' || event.key === 'ArrowDown') move(1)
         if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') move(-1)
@@ -236,6 +298,7 @@ function OpenSourceWheel({
           const distance = Math.abs(offset)
           const active = selected?.id === item.id
           const opacity = Math.max(0.45, 1 - distance * 0.18)
+          const shouldLoadCover = distance <= 2
 
           return (
             <button
@@ -249,7 +312,11 @@ function OpenSourceWheel({
                 zIndex: 30 - distance,
               }}
             >
-              <CoverThumb project={item} className="h-full w-full" />
+              {shouldLoadCover ? (
+                <CoverThumb project={item} className="h-full w-full" eager={active} />
+              ) : (
+                <CoverPlaceholder className="h-full w-full" />
+              )}
               {active ? (
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
                   <div className="flex items-center gap-2 text-sm font-semibold text-white">
@@ -276,6 +343,7 @@ function ResourceWheel({
   onSelect: (project: ProjectDto) => void
 }) {
   const wheelLockRef = useRef(0)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const activeIndex = Math.max(0, selected ? items.findIndex((item) => item.id === selected.id) : 0)
   const itemHeight = 104
 
@@ -295,13 +363,34 @@ function ResourceWheel({
     if (delta !== 0) move(delta > 0 ? 1 : -1)
   }
 
+  const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (!touch) return
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    const delta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX
+    if (Math.abs(delta) < 34) return
+    move(delta < 0 ? 1 : -1)
+  }
+
   if (!items.length) return <EmptyState label="这个分类还没有资源。" />
 
   return (
     <div
       tabIndex={0}
-      className="relative h-[520px] overscroll-contain overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
+      className="relative h-[520px] touch-none overscroll-contain overflow-hidden rounded-md border border-[var(--glass-border)] bg-white/[0.03] outline-none transition focus:border-[color:var(--led-color)]"
       onWheelCapture={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={(event) => event.preventDefault()}
+      onTouchEnd={handleTouchEnd}
       onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowRight') move(1)
         if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') move(-1)
@@ -317,6 +406,7 @@ function ResourceWheel({
           const distance = Math.abs(offset)
           const active = selected?.id === item.id
           const opacity = Math.max(0.62, 1 - distance * 0.1)
+          const shouldLoadCover = distance <= 2
 
           return (
             <button
@@ -333,7 +423,11 @@ function ResourceWheel({
                 zIndex: 30 - distance,
               }}
             >
-              <CoverThumb project={item} className="h-24 w-24" />
+              {shouldLoadCover ? (
+                <CoverThumb project={item} className="h-24 w-24" eager={active} />
+              ) : (
+                <CoverPlaceholder className="h-24 w-24" />
+              )}
               <div className="min-w-0 px-3 py-2">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--fg))]">
                   {active ? <Check size={14} className="text-[color:var(--led-color)]" /> : <Circle size={7} className="text-[rgb(var(--muted))]" />}
@@ -404,6 +498,7 @@ function ImmersiveProjectOverlay({
   const [leaving, setLeaving] = useState(false)
   const closeTimerRef = useRef<number | null>(null)
   const wheelLockRef = useRef(0)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const activeIndex = Math.max(0, slideItems.findIndex((item) => item.id === project.id))
 
   const move = (direction: 1 | -1) => {
@@ -420,6 +515,24 @@ function ImmersiveProjectOverlay({
     wheelLockRef.current = now
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
     if (delta !== 0) move(delta > 0 ? -1 : 1)
+  }
+
+  const handleTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0]
+    if (!touch) return
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    const touch = event.changedTouches[0]
+    touchStartRef.current = null
+    if (!start || !touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY
+    if (Math.abs(delta) < 42) return
+    move(delta < 0 ? 1 : -1)
   }
 
   const requestClose = () => {
@@ -447,7 +560,13 @@ function ImmersiveProjectOverlay({
   }, [activeIndex, slideItems, leaving, onClose])
 
   return createPortal(
-    <div className={['resource-immersive-overlay fixed inset-0 z-[30] overflow-hidden bg-black text-white', leaving ? 'is-leaving' : ''].join(' ')} onWheelCapture={handleWheel}>
+    <div
+      className={['resource-immersive-overlay fixed inset-0 z-[30] touch-none overflow-hidden bg-black text-white', leaving ? 'is-leaving' : ''].join(' ')}
+      onWheelCapture={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={(event) => event.preventDefault()}
+      onTouchEnd={handleTouchEnd}
+    >
       <div
         className="resource-immersive-track flex h-full w-full"
         style={{ transform: `translateX(-${activeIndex * 100}%)` }}
@@ -457,10 +576,22 @@ function ImmersiveProjectOverlay({
           const type = normalizeType(item.resourceType)
           const meta = resourceMetaByType[type]
           const downloadUrl = resolveAssetUrl(item.downloadUrl)
+          const shouldLoadCover = Math.abs(index - activeIndex) <= 1
 
           return (
             <section key={item.id} className="relative h-full w-full flex-none overflow-hidden bg-black">
-              {cover ? <img src={cover} alt={item.name} className="absolute inset-0 h-full w-full object-cover" /> : <div className="absolute inset-0 bg-[rgb(var(--bg))]" />}
+              {cover && shouldLoadCover ? (
+                <img
+                  src={cover}
+                  alt={item.name}
+                  loading={index === activeIndex ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchPriority={index === activeIndex ? 'high' : 'low'}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[rgb(var(--bg))]" />
+              )}
               <div className="absolute inset-0 bg-black/15" />
               <div className="absolute inset-x-0 bottom-0 h-[30vh] bg-gradient-to-t from-black via-black/82 to-transparent" />
 
@@ -549,7 +680,7 @@ function ImmersiveProjectOverlay({
 
 export default function DownloadPage() {
   const user = useAppStore((s) => s.user)
-  const isAdmin = user.role === 'ADMIN'
+  const isAdmin = isAdminRole(user.role)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -570,11 +701,11 @@ export default function DownloadPage() {
   const [cover, setCover] = useState<File | null>(null)
   const [file, setFile] = useState<File | null>(null)
 
-  const loadProjects = async () => {
+  const loadProjects = async (force = false) => {
     try {
       setLoading(true)
       setError(null)
-      const res = await getProjectList()
+      const res = await getProjectList({ force })
       const sorted = [...(res.data ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
       setProjects(sorted)
     } catch (e) {
@@ -626,12 +757,13 @@ export default function DownloadPage() {
       if (cover) data.append('cover', cover)
       if (file) data.append('file', file)
       await publishAdminProject(data)
+      invalidateProjectListCache()
       setPublishMessage('已发布')
       setPublishOpen(false)
       setForm({ name: '', description: '', resourceType: 'OPEN_SOURCE', downloadUrl: '', githubUrl: '', sortOrder: '0' })
       setCover(null)
       setFile(null)
-      await loadProjects()
+      await loadProjects(true)
     } catch (e) {
       setPublishMessage(e instanceof Error ? e.message : String(e))
     } finally {
@@ -691,7 +823,7 @@ export default function DownloadPage() {
             </div>
           </header>
 
-          {loading ? <EmptyState label="正在读取资源..." /> : null}
+          {loading ? <LoadingState label="正在读取资源..." /> : null}
           {error ? <EmptyState label={`资源读取失败：${error}`} /> : null}
 
           {!loading && !error ? (
@@ -740,8 +872,8 @@ export default function DownloadPage() {
         />
       ) : null}
 
-      {publishOpen ? (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/45 px-4" onMouseDown={() => setPublishOpen(false)}>
+      {publishOpen ? createPortal(
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/45 px-4" onMouseDown={() => setPublishOpen(false)}>
           <div className="glass w-full max-w-2xl rounded-md p-5 shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <div>
@@ -786,7 +918,21 @@ export default function DownloadPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
+      ) : null}
+
+      {isAdmin ? (
+        <button
+          type="button"
+          onClick={() => setPublishOpen(true)}
+          className="btn-primary fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-4 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full shadow-2xl md:bottom-6 md:h-auto md:w-auto md:gap-2 md:rounded-md md:px-4 md:py-2 md:text-sm md:font-semibold"
+          aria-label="发布资源"
+          title="发布资源"
+        >
+          <Plus size={18} />
+          <span className="hidden md:inline">发布资源</span>
+        </button>
       ) : null}
     </div>
   )

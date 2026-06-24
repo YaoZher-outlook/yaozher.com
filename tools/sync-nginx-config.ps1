@@ -6,15 +6,15 @@ $NginxConfigTemplate = Join-Path $PSScriptRoot 'nginx-prod.conf'
 $NginxConfig = Join-Path $NginxDir 'conf\nginx.conf'
 $NginxConfigBackup = Join-Path $NginxDir 'conf\nginx.conf.default'
 $FrontendDist = (Join-Path $Root 'v1_f\dist') -replace '\\', '/'
+$YySiteRoot = (Join-Path $Root 'sites\yy.yaozher.com') -replace '\\', '/'
 
 if (-not (Test-Path $NginxConfigTemplate -PathType Leaf)) {
     throw "Nginx config template was not found: $NginxConfigTemplate"
 }
 
-$RenderedConfig = (Get-Content -LiteralPath $NginxConfigTemplate -Raw).Replace(
-    '__YAOZHER_FRONTEND_DIST__',
-    $FrontendDist
-)
+$RenderedConfig = (Get-Content -LiteralPath $NginxConfigTemplate -Raw).
+    Replace('__YAOZHER_FRONTEND_DIST__', $FrontendDist).
+    Replace('__YAOZHER_YY_SITE_ROOT__', $YySiteRoot)
 
 function Test-NginxConfigCurrent {
     if (-not (Test-Path $NginxConfig -PathType Leaf)) {

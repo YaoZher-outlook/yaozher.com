@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 
 import { useAppStore } from '@/store/appStore'
 import MusicPlayer from '@/modules/music/MusicPlayer'
+import MusicPreloader from '@/modules/music/MusicPreloader'
 import MusicWaveBackground from '@/modules/music/MusicWaveBackground'
 import FloatingLyricsPanel from '@/modules/music/FloatingLyricsPanel'
 import AuthPanel from '@/modules/auth/AuthPanel'
@@ -27,6 +28,23 @@ function routeIndex(pathname: string) {
   if (pathname === '/settings') return 3
   if (pathname === '/toolbox') return 4
   return 0
+}
+
+function useIsNarrowViewport() {
+  const [isNarrow, setIsNarrow] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(max-width: 767px)').matches
+  })
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)')
+    const update = () => setIsNarrow(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+
+  return isNarrow
 }
 
 function SidebarNavItem({ item }: { item: NavItem }) {
@@ -61,12 +79,39 @@ function SidebarNavItem({ item }: { item: NavItem }) {
   )
 }
 
+function MobileNavItem({ item }: { item: NavItem }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const unreadTotal = useAppStore((s) => Object.values(s.unreadMessages).reduce((sum, count) => sum + count, 0))
+  const active = location.pathname === item.to || (item.key === 'home' && location.pathname === '/news')
+  const showUnread = item.key === 'messages' && unreadTotal > 0
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(item.to)}
+      className={[
+        'relative flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] transition',
+        active ? 'text-[color:var(--led-color)]' : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]',
+      ].join(' ')}
+    >
+      <span>{item.icon}</span>
+      <span className="max-w-full truncate">{item.label}</span>
+      {showUnread ? (
+        <span className="absolute right-3 top-1 grid min-w-4 place-items-center rounded-full bg-[color:var(--led-color)] px-1 text-[9px] font-semibold text-[rgb(var(--btn-fg-on-led))]">
+          {unreadTotal > 99 ? '99+' : unreadTotal}
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
 export default function MainLayout() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const location = useLocation()
   const outlet = useOutlet()
   const isProjectPage = false
+  const isMobile = useIsNarrowViewport()
 
   const user = useAppStore((s) => s.user)
   const token = useAppStore((s) => s.token)
@@ -77,6 +122,7 @@ export default function MainLayout() {
   const backgroundImageUrl = useAppStore((s) => s.backgroundImageUrl)
   const backgroundOpacity = useAppStore((s) => s.backgroundOpacity)
   const backgroundSrc = resolveAssetUrl(backgroundImageUrl, assetVersion)
+  const [backgroundReady, setBackgroundReady] = useState(false)
 
   const isAuthPanelOpen = useAppStore((s) => s.isAuthPanelOpen)
   const openAuthPanel = useAppStore((s) => s.openAuthPanel)
@@ -84,7 +130,7 @@ export default function MainLayout() {
   const isAccountPanelOpen = useAppStore((s) => s.isAccountPanelOpen)
   const toggleAccountPanel = useAppStore((s) => s.toggleAccountPanel)
 
-  const pageShellClass = isProjectPage ? 'relative min-h-screen' : 'relative min-h-screen px-8 py-8'
+  const pageShellClass = isProjectPage ? 'relative min-h-screen' : 'relative min-h-screen px-4 pb-28 pt-20 md:px-8 md:py-8'
   const previousPathRef = useRef(location.pathname)
   const routeDirection = useMemo(() => {
     const previous = previousPathRef.current
@@ -103,20 +149,36 @@ export default function MainLayout() {
   const [musicWakeSignal, setMusicWakeSignal] = useState(0)
 
   const updateMusicAnchor = () => {
+    if (isMobile) {
+      const panelWidth = Math.min(420, window.innerWidth - 16)
+      setMusicBoundaryLeft(0)
+      setMusicAnchor({
+        left: Math.max(8, window.innerWidth - panelWidth - 8),
+        top: 64,
+      })
+      return
+    }
+
     const aside = sidebarRef.current
     const wrap = musicBtnWrapRef.current
     if (!aside || !wrap) return
 
     const a = aside.getBoundingClientRect()
-    const w = wrap.getBoundingClientRect()
 
     setMusicBoundaryLeft(a.left + a.width)
     setMusicAnchor({
       left: a.left + a.width + 12,
-      // nudge upward to avoid bottom overflow
-      top: Math.max(12, w.top - 64),
+      top: 24,
     })
   }
+
+  useEffect(() => {
+    setBackgroundReady(false)
+  }, [backgroundSrc])
+
+  useEffect(() => {
+    if (isMusicPlayerOpen) requestAnimationFrame(updateMusicAnchor)
+  }, [isMobile, isMusicPlayerOpen])
 
   const navItems = useMemo<NavItem[]>(
     () => [
@@ -136,19 +198,23 @@ export default function MainLayout() {
           <img
             src={backgroundSrc}
             alt=""
-            className="h-full w-full object-cover"
-            style={{ opacity: backgroundOpacity }}
+            decoding="async"
+            fetchPriority="low"
+            onLoad={() => setBackgroundReady(true)}
+            className="h-full w-full object-cover transition-opacity duration-700"
+            style={{ opacity: backgroundReady ? backgroundOpacity : 0 }}
           />
           <div className="absolute inset-0 bg-[rgb(var(--bg))]/35" />
         </div>
       ) : null}
+      <MusicPreloader />
       <MusicWaveBackground />
 
       {/* Left Sidebar */}
       <aside
         ref={sidebarRef}
         className={[
-          'fixed left-0 top-0 z-40 flex h-screen w-32 flex-col transition-colors duration-300',
+          'app-sidebar fixed left-0 top-0 z-40 hidden h-screen w-32 flex-col transition-colors duration-300 md:flex',
           isProjectPage ? 'project-sidebar' : 'border-r border-white/10 bg-black/40',
         ].join(' ')}
       >
@@ -231,13 +297,37 @@ export default function MainLayout() {
         </section>
       </aside>
 
+      <div className="mobile-account-button fixed left-3 top-3 z-50 md:hidden">
+        <button
+          type="button"
+          onClick={() => (user.isLoggedIn ? toggleAccountPanel() : openAuthPanel())}
+          className="glass grid h-12 w-12 place-items-center overflow-hidden rounded-full text-xs text-[rgb(var(--muted))] shadow-2xl"
+          aria-label={user.isLoggedIn ? 'account' : 'login'}
+        >
+          {avatarSrc ? <img src={avatarSrc} alt="" className="h-full w-full object-cover" /> : user.isLoggedIn ? <ArrowRight size={18} /> : t('user.login')}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (isMusicPlayerOpen) setMusicPlayerOpen(false)
+          else setMusicPlayerOpen(true)
+          requestAnimationFrame(updateMusicAnchor)
+        }}
+        className="mobile-music-button glass fixed right-3 top-3 z-50 grid h-12 w-12 place-items-center rounded-full text-[rgb(var(--fg))] shadow-2xl md:hidden"
+        aria-label={t('music.toggle')}
+      >
+        <Music size={20} />
+      </button>
+
       {/* Right Content Area */}
-      <main className={isProjectPage ? 'relative z-10 h-screen overflow-y-auto' : 'relative z-10 ml-32 h-screen overflow-y-auto'}>
+      <main className={isProjectPage ? 'relative z-10 h-[100dvh] overflow-y-auto' : 'relative z-10 h-[100dvh] overflow-y-auto md:ml-32'}>
         <motion.div
           key={location.pathname}
-          initial={routeDirection === 0 ? false : { y: routeDirection * 48 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          initial={routeDirection === 0 ? false : { y: routeDirection * (isMobile ? 18 : 48), opacity: 0.84 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: isMobile ? 0.22 : 0.3, ease: [0.22, 1, 0.36, 1] }}
           className={pageShellClass}
           style={{ willChange: 'transform' }}
         >
@@ -245,9 +335,15 @@ export default function MainLayout() {
         </motion.div>
       </main>
 
+      <nav className="mobile-bottom-nav glass fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 overflow-hidden rounded-2xl shadow-2xl md:hidden">
+        {navItems.map((item) => (
+          <MobileNavItem key={item.key} item={item} />
+        ))}
+      </nav>
+
       {/* Floating Components */}
-      {isAuthPanelOpen ? <AuthPanel anchor={{ left: 8 * 16 + 12, top: 24 }} /> : null}
-      {isAccountPanelOpen ? <AccountPanel anchor={{ left: 8 * 16 + 12, top: 24 }} /> : null}
+      {isAuthPanelOpen ? <AuthPanel anchor={{ left: isMobile ? 12 : 8 * 16 + 12, top: isMobile ? 64 : 24 }} /> : null}
+      {isAccountPanelOpen ? <AccountPanel anchor={{ left: isMobile ? 12 : 8 * 16 + 12, top: isMobile ? 64 : 24 }} /> : null}
 
       {isMusicPlayerOpen ? (
         <MusicPlayer
@@ -255,9 +351,10 @@ export default function MainLayout() {
           collapseBoundaryLeft={musicBoundaryLeft}
           revealSignal={musicWakeSignal}
           onRequestReanchor={updateMusicAnchor}
+          isMobile={isMobile}
         />
       ) : null}
-      <FloatingLyricsPanel />
+      {!isMobile ? <FloatingLyricsPanel /> : null}
       {token ? <GlobalChatNotifier /> : null}
     </div>
   )

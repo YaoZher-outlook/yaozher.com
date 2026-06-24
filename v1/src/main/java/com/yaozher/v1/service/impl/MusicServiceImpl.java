@@ -52,6 +52,13 @@ public class MusicServiceImpl implements MusicService {
             Pattern.CASE_INSENSITIVE
     );
     private static final Pattern NON_SEARCHABLE_TEXT = Pattern.compile("[\\p{P}\\p{S}\\s]+");
+    private static final Pattern PARENTHETICAL_TEXT = Pattern.compile("[\\(\\x{FF08}\\[\\x{FF3B}].*?[\\)\\x{FF09}\\]\\x{FF3D}]");
+    private static final Pattern VERSION_WORDS = Pattern.compile(
+            "\\b(explicit|radio edit|demo version|original mix|instrumental mix|live|dj|remix|feat\\.?[^)]*)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final double FUZZY_LYRIC_MIN_SCORE = 0.91;
+    private static final double FUZZY_LYRIC_MIN_MARGIN = 0.025;
 
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
@@ -233,7 +240,9 @@ public class MusicServiceImpl implements MusicService {
 
     private String normalizeArtist(String raw) {
         String value = raw == null ? "" : raw.trim();
-        if (!StringUtils.hasText(value) || "未知作者".equals(value) || "unknown".equalsIgnoreCase(value)) {
+        if (!StringUtils.hasText(value)
+                || "\u672a\u77e5\u4f5c\u8005".equals(value)
+                || "unknown".equalsIgnoreCase(value)) {
             return "Unknown Artist";
         }
         return value;
@@ -309,7 +318,7 @@ public class MusicServiceImpl implements MusicService {
         if (titleMatches != null && titleMatches.size() == 1) {
             return titleMatches.get(0);
         }
-        return null;
+        return findFuzzyLyric(index, baseName, parsed);
     }
 
     private LyricIndex lyricIndex(Path root) {
@@ -322,13 +331,14 @@ public class MusicServiceImpl implements MusicService {
 
             Map<String, List<Path>> bySearchKey = new ConcurrentHashMap<>();
             Map<String, List<Path>> byTitleKey = new ConcurrentHashMap<>();
+            List<LyricCandidate> candidates = new ArrayList<>();
             try (Stream<Path> files = Files.walk(root)) {
                 files.filter(Files::isRegularFile)
                         .filter(this::isLyric)
                         .sorted(Comparator.comparing(Path::toString, String.CASE_INSENSITIVE_ORDER))
-                        .forEach(path -> indexLyric(bySearchKey, byTitleKey, path));
+                        .forEach(path -> indexLyric(bySearchKey, byTitleKey, candidates, path));
             }
-            LyricIndex refreshed = new LyricIndex(root, modified, bySearchKey, byTitleKey);
+            LyricIndex refreshed = new LyricIndex(root, modified, bySearchKey, byTitleKey, List.copyOf(candidates));
             lyricIndex = refreshed;
             return refreshed;
         } catch (Exception e) {
@@ -338,10 +348,12 @@ public class MusicServiceImpl implements MusicService {
 
     private void indexLyric(Map<String, List<Path>> index,
                             Map<String, List<Path>> titleIndex,
+                            List<LyricCandidate> candidates,
                             Path lyric) {
         String downloadedName = stripExtension(lyric.getFileName().toString());
         String cleanName = DOWNLOADED_LYRIC_SUFFIX.matcher(downloadedName).replaceFirst("");
         ParsedTrack parsed = parseTrack(cleanName);
+        candidates.add(new LyricCandidate(lyric, cleanName, parsed));
         Set<String> keys = new LinkedHashSet<>();
         keys.add(searchKey(cleanName));
         keys.add(searchKey(parsed.artist() + " - " + parsed.title()));
@@ -356,6 +368,125 @@ public class MusicServiceImpl implements MusicService {
         if (StringUtils.hasText(titleKey)) {
             titleIndex.computeIfAbsent(titleKey, ignored -> new ArrayList<>()).add(lyric);
         }
+    }
+
+    private Path findFuzzyLyric(LyricIndex index, String baseName, ParsedTrack parsed) {
+        LyricCandidate best = null;
+        double bestScore = 0;
+        double secondScore = 0;
+
+        for (LyricCandidate candidate : index.candidates()) {
+            double score = lyricSimilarity(baseName, parsed, candidate);
+            if (score > bestScore) {
+                secondScore = bestScore;
+                bestScore = score;
+                best = candidate;
+            } else if (score > secondScore) {
+                secondScore = score;
+            }
+        }
+
+        if (best == null || bestScore < FUZZY_LYRIC_MIN_SCORE) {
+            return null;
+        }
+        if (bestScore < 0.985 && bestScore - secondScore < FUZZY_LYRIC_MIN_MARGIN) {
+            return null;
+        }
+        return best.path();
+    }
+
+    private double lyricSimilarity(String baseName, ParsedTrack track, LyricCandidate lyric) {
+        ParsedTrack candidate = lyric.parsed();
+        double titleScore = titleSimilarity(track.title(), candidate.title());
+        double artistScore = artistSimilarity(track.artist(), candidate.artist());
+        double fullScore = Math.max(
+                similarity(baseName, lyric.cleanName()),
+                Math.max(
+                        similarity(track.artist() + " - " + track.title(), lyric.cleanName()),
+                        similarity(track.title() + " - " + track.artist(), lyric.cleanName())
+                )
+        );
+        return Math.max(fullScore, titleScore * 0.78 + artistScore * 0.22);
+    }
+
+    private double titleSimilarity(String left, String right) {
+        return Math.max(similarity(left, right), similarity(looseTitle(left), looseTitle(right)));
+    }
+
+    private double artistSimilarity(String left, String right) {
+        String leftKey = searchKey(left);
+        String rightKey = searchKey(right);
+        if (!StringUtils.hasText(leftKey)
+                || !StringUtils.hasText(rightKey)
+                || "unknownartist".equals(leftKey)
+                || "unknownartist".equals(rightKey)) {
+            return 0.75;
+        }
+        if (leftKey.equals(rightKey)) {
+            return 1;
+        }
+        if ((leftKey.length() >= 3 && rightKey.contains(leftKey))
+                || (rightKey.length() >= 3 && leftKey.contains(rightKey))) {
+            return 0.88;
+        }
+        return Math.max(similarity(left, right), similarity(primaryArtist(left), primaryArtist(right)));
+    }
+
+    private String looseTitle(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String withoutParentheses = PARENTHETICAL_TEXT.matcher(value).replaceAll(" ");
+        return VERSION_WORDS.matcher(withoutParentheses).replaceAll(" ").trim();
+    }
+
+    private String primaryArtist(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value.split("[\\u3001,&/]", 2)[0].trim();
+    }
+
+    private double similarity(String left, String right) {
+        String leftKey = searchKey(left);
+        String rightKey = searchKey(right);
+        if (!StringUtils.hasText(leftKey) && !StringUtils.hasText(rightKey)) {
+            return 1;
+        }
+        if (!StringUtils.hasText(leftKey) || !StringUtils.hasText(rightKey)) {
+            return 0;
+        }
+        if (leftKey.equals(rightKey)) {
+            return 1;
+        }
+        if ((leftKey.length() >= 4 && rightKey.contains(leftKey))
+                || (rightKey.length() >= 4 && leftKey.contains(rightKey))) {
+            return 0.94;
+        }
+        return diceCoefficient(leftKey, rightKey);
+    }
+
+    private double diceCoefficient(String left, String right) {
+        Set<String> leftPairs = bigrams(left);
+        Set<String> rightPairs = bigrams(right);
+        if (leftPairs.isEmpty() || rightPairs.isEmpty()) {
+            return 0;
+        }
+
+        long intersection = leftPairs.stream().filter(rightPairs::contains).count();
+        return (2.0 * intersection) / (leftPairs.size() + rightPairs.size());
+    }
+
+    private Set<String> bigrams(String value) {
+        if (value.length() < 2) {
+            return StringUtils.hasText(value) ? Set.of(value) : Set.of();
+        }
+
+        Set<String> pairs = new LinkedHashSet<>();
+        for (int i = 0; i < value.length() - 1; i++) {
+            pairs.add(value.substring(i, i + 2));
+        }
+        return pairs;
     }
 
     private String searchKey(String value) {
@@ -462,9 +593,13 @@ public class MusicServiceImpl implements MusicService {
     private record LyricIndex(Path root,
                               long modified,
                               Map<String, List<Path>> bySearchKey,
-                              Map<String, List<Path>> byTitleKey) {
+                              Map<String, List<Path>> byTitleKey,
+                              List<LyricCandidate> candidates) {
         private static LyricIndex empty() {
-            return new LyricIndex(Path.of(""), -1, Map.of(), Map.of());
+            return new LyricIndex(Path.of(""), -1, Map.of(), Map.of(), List.of());
         }
+    }
+
+    private record LyricCandidate(Path path, String cleanName, ParsedTrack parsed) {
     }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   Bot,
   CalendarDays,
   ChevronDown,
@@ -68,6 +69,23 @@ function formatYearMonth(value?: string | null) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+function useIsNarrowViewport() {
+  const [isNarrow, setIsNarrow] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(max-width: 767px)').matches
+  })
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)')
+    const update = () => setIsNarrow(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+
+  return isNarrow
+}
+
 export default function MessagesPage() {
   const user = useAppStore((s) => s.user)
   const token = useAppStore((s) => s.token)
@@ -77,6 +95,7 @@ export default function MessagesPage() {
   const clearUnreadMessages = useAppStore((s) => s.clearUnreadMessages)
   const [searchParams] = useSearchParams()
   const requestedPeerId = searchParams.get('peerId') ?? ''
+  const isMobile = useIsNarrowViewport()
 
   const userId = useMemo(() => {
     return user.id ? String(user.id) : String(user.uid ?? '').match(/(\d+)/)?.[1] ?? ''
@@ -84,12 +103,15 @@ export default function MessagesPage() {
 
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting')
   const [error, setError] = useState<string | null>(null)
+  const [contactsLoading, setContactsLoading] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [contacts, setContacts] = useState<ChatContactVo[]>([])
   const [receiverId, setReceiverId] = useState('')
   const [text, setText] = useState('')
   const [messages, setMessages] = useState<UiMessage[]>([])
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [profileContact, setProfileContact] = useState<ChatContactVo | null>(null)
+  const [mobileChatOpen, setMobileChatOpen] = useState(false)
 
   const clientRef = useRef<ReturnType<typeof createChatClient> | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -99,6 +121,16 @@ export default function MessagesPage() {
 
   const selectedContact = contacts.find((c) => c.id === receiverId) ?? null
   const isAdmin = user.role === 'ADMIN'
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (isMobile && mobileChatOpen && receiverId) {
+      root.setAttribute('data-mobile-chat-open', 'true')
+    } else {
+      root.removeAttribute('data-mobile-chat-open')
+    }
+    return () => root.removeAttribute('data-mobile-chat-open')
+  }, [isMobile, mobileChatOpen, receiverId])
 
   const groupedContacts = useMemo(() => {
     const order = ['ADMIN', 'FRIENDS', 'HR', 'USER', 'Chatbots']
@@ -125,53 +157,70 @@ export default function MessagesPage() {
 
   const refreshContacts = () => {
     if (!token) return
+    setContactsLoading(true)
     void getChatContacts()
       .then((res) => setContacts(res.data ?? []))
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setContactsLoading(false))
   }
 
   useEffect(() => {
-    receiverIdRef.current = receiverId
-  }, [receiverId])
+    receiverIdRef.current = isMobile && !mobileChatOpen ? '' : receiverId
+  }, [receiverId, isMobile, mobileChatOpen])
 
   useEffect(() => {
     if (!token) {
       setContacts([])
       setReceiverId('')
       setMessages([])
+      setMobileChatOpen(false)
+      setContactsLoading(false)
       return
     }
 
     let cancelled = false
+    setContactsLoading(true)
     void getChatContacts()
       .then((res) => {
         if (cancelled) return
         const list = res.data ?? []
         setContacts(list)
         setReceiverId((prev) => {
-          if (requestedPeerId && list.some((c) => c.id === requestedPeerId)) return requestedPeerId
-          return prev && list.some((c) => c.id === prev) ? prev : list[0]?.id ?? ''
+          if (requestedPeerId && list.some((c) => c.id === requestedPeerId)) {
+            setMobileChatOpen(true)
+            return requestedPeerId
+          }
+          if (prev && list.some((c) => c.id === prev)) return prev
+          return isMobile ? '' : list[0]?.id ?? ''
         })
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => {
+        if (!cancelled) setContactsLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [token, user.role, requestedPeerId])
+  }, [token, user.role, requestedPeerId, isMobile])
 
   useEffect(() => {
     if (!token || !receiverId) {
       setMessages([])
+      setHistoryLoading(false)
       return
     }
 
     let cancelled = false
+    setHistoryLoading(true)
     void getChatHistory(receiverId)
       .then((res) => {
         if (!cancelled) setMessages((res.data ?? []).map((m) => toUiMessage(m, userId)))
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false)
       })
     return () => {
       cancelled = true
@@ -327,15 +376,40 @@ export default function MessagesPage() {
     return <div className="whitespace-pre-wrap">{m.content}</div>
   }
 
+  const rootClass = isMobile
+    ? '-mx-4 -mb-28 -mt-20 h-[100dvh] overflow-hidden bg-[rgb(var(--bg))]'
+    : 'mx-auto grid h-[calc(100vh-4rem)] max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]'
+  const chatPanelClass = isMobile
+    ? mobileChatOpen
+      ? 'flex h-full min-h-0 flex-col overflow-hidden bg-[rgb(var(--bg))]'
+      : 'hidden'
+    : 'glass flex min-h-0 flex-col overflow-hidden rounded-md'
+  const contactsPanelClass = isMobile
+    ? mobileChatOpen
+      ? 'hidden'
+      : 'flex h-full min-h-0 flex-col overflow-hidden bg-[rgb(var(--bg))]'
+    : 'glass min-h-0 overflow-hidden rounded-md'
+  const contactsScrollClass = isMobile ? 'min-h-0 flex-1 overflow-y-auto p-2 pb-28' : 'max-h-[calc(100vh-9rem)] overflow-y-auto p-2'
+
   return (
-    <div className="mx-auto grid h-[calc(100vh-4rem)] max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
-      <div className="glass flex min-h-0 flex-col overflow-hidden rounded-md">
+    <div className={rootClass}>
+      <div className={chatPanelClass}>
         <div className="relative flex items-center gap-3 border-b border-[var(--glass-border)] bg-white/5 px-4 py-3">
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => setMobileChatOpen(false)}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[rgb(var(--fg))] transition active:bg-white/10"
+              aria-label="返回消息列表"
+            >
+              <ArrowLeft size={21} />
+            </button>
+          ) : null}
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-[0.22em] text-[rgb(var(--muted))]">Messages</div>
             <div className="mt-1 truncate text-lg font-semibold">{selectedContact?.name ?? 'Realtime Chat'}</div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className={['ml-auto items-center gap-2', isMobile ? 'hidden' : 'flex'].join(' ')}>
             <span className="hidden text-xs text-[rgb(var(--muted))] md:inline">
               user: {userId || 'guest'} | status: <span className="text-[rgb(var(--fg))]">{status}</span>
             </span>
@@ -352,14 +426,20 @@ export default function MessagesPage() {
 
         {error ? <div className="border-b border-[var(--glass-border)] px-4 py-2 text-xs text-red-300">{error}</div> : null}
 
-        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-4">
           <div className="space-y-3">
+            {historyLoading ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-[rgb(var(--muted))]">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-[rgb(var(--muted))]/25 border-t-[color:var(--led-color)]" />
+                正在读取聊天记录...
+              </div>
+            ) : null}
             {messages.map((m) => {
               const pct = Math.round(chatBubbleOpacity * 100)
               return (
                 <div key={m.id} className={m.mine ? 'flex justify-end' : 'flex justify-start'}>
                   <div
-                    className="chat-bubble max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 text-[rgb(var(--fg))]"
+                    className="chat-bubble max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-6 text-[rgb(var(--fg))] md:max-w-[78%]"
                     style={m.mine ? { background: `color-mix(in srgb, var(--led-color) ${pct}%, transparent)` } : undefined}
                   >
                     {renderContent(m)}
@@ -368,7 +448,7 @@ export default function MessagesPage() {
                 </div>
               )
             })}
-            {!messages.length ? (
+            {!historyLoading && !messages.length ? (
               <div className="text-sm text-[rgb(var(--muted))]">
                 {receiverId ? 'No visible messages. Type and send.' : 'Select a chat target on the right.'}
               </div>
@@ -376,8 +456,8 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="border-t border-[var(--glass-border)] bg-white/5 p-4">
-          <div className="flex items-end gap-3">
+        <div className="border-t border-[var(--glass-border)] bg-white/5 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4">
+          <div className="flex items-end gap-2 md:gap-3">
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -393,27 +473,27 @@ export default function MessagesPage() {
               className="input-base min-h-[44px] flex-1 resize-none rounded-2xl px-4 py-3 text-sm outline-none placeholder:text-white/30 focus:border-[color:var(--led-color)] disabled:opacity-50"
             />
 
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-2">
               <button type="button" disabled={!receiverId} onClick={() => fileInputRef.current?.click()} className="glass inline-flex h-11 w-11 items-center justify-center rounded-2xl text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))] disabled:opacity-40" title="Attach" aria-label="attach">
                 <Paperclip size={18} />
               </button>
               <button type="button" disabled={!receiverId} onClick={() => imageInputRef.current?.click()} className="glass inline-flex h-11 w-11 items-center justify-center rounded-2xl text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))] disabled:opacity-40" title="Image" aria-label="image">
                 <Image size={18} />
               </button>
-              <button type="button" disabled={!receiverId || !text.trim()} onClick={sendText} className="btn-primary inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold disabled:opacity-50">
+              <button type="button" disabled={!receiverId || !text.trim()} onClick={sendText} className="btn-primary inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold disabled:opacity-50 md:px-4">
                 <Send size={16} />
-                Send
+                <span className="hidden md:inline">Send</span>
               </button>
               <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => void sendFile(e.target.files?.[0], 'FILE')} />
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void sendFile(e.target.files?.[0], 'IMAGE')} />
             </div>
           </div>
 
-          <div className="mt-2 text-[11px] text-[rgb(var(--muted))]">Enter to send | Shift+Enter for newline</div>
+          <div className="mt-2 hidden text-[11px] text-[rgb(var(--muted))] md:block">Enter to send | Shift+Enter for newline</div>
         </div>
       </div>
 
-      <aside className="glass min-h-0 overflow-hidden rounded-md">
+      <aside className={contactsPanelClass}>
         <div className="border-b border-[var(--glass-border)] px-4 py-3">
           <div className="text-sm font-semibold">Chat Targets</div>
           <div className="mt-1 text-xs text-[rgb(var(--muted))]">
@@ -421,7 +501,13 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto p-2">
+        <div className={contactsScrollClass}>
+          {contactsLoading ? (
+            <div className="flex items-center justify-center gap-2 px-3 py-8 text-sm text-[rgb(var(--muted))]">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-[rgb(var(--muted))]/25 border-t-[color:var(--led-color)]" />
+              正在读取联系人...
+            </div>
+          ) : null}
           {groupedContacts.map(([key, list]) => {
             const collapsed = collapsedGroups.has(key)
             return (
@@ -455,6 +541,7 @@ export default function MessagesPage() {
                             type="button"
                             onClick={() => {
                               setReceiverId(contact.id)
+                              if (isMobile) setMobileChatOpen(true)
                               clearUnreadMessages(contact.id)
                             }}
                             className="flex w-full items-center gap-3 px-3 py-3 pr-16 text-left"
@@ -503,7 +590,7 @@ export default function MessagesPage() {
             )
           })}
 
-          {!contacts.length ? (
+          {!contactsLoading && !contacts.length ? (
             <div className="px-3 py-4 text-sm text-[rgb(var(--muted))]">
               {!token ? 'No targets before login.' : isAdmin ? 'No users registered yet.' : 'No targets available.'}
             </div>

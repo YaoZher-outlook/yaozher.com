@@ -103,6 +103,43 @@ body {
   -webkit-backdrop-filter: blur(var(--chat-bubble-blur)) saturate(var(--chat-bubble-saturate));
 }
 
+.app-sidebar {
+  animation: sidebarEnter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mobile-bottom-nav {
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+  animation: mobileNavEnter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-mobile-chat-open='true'] .mobile-bottom-nav,
+[data-mobile-chat-open='true'] .mobile-account-button,
+[data-mobile-chat-open='true'] .mobile-music-button {
+  display: none;
+}
+
+@keyframes sidebarEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes mobileNavEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .message-toast,
 .message-toast-summary {
   background: rgb(var(--glass-tint) / max(var(--glass-opacity), 0.46));
@@ -140,6 +177,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .mobile-bottom-nav,
   .message-toast,
   .message-toast-leaving {
     animation: none;
@@ -153,11 +192,13 @@ body {
 
 .music-wave-bg {
   opacity: calc(0.35 + var(--music-wave-alpha));
-  mix-blend-mode: screen;
+  contain: paint;
+  isolation: isolate;
+  mix-blend-mode: normal;
 }
 
 .music-wave-bar {
-  width: max(2px, 0.22vw);
+  width: var(--music-wave-bar-width, max(2px, 0.22vw));
   min-height: 12px;
   border-radius: 999px;
   background: linear-gradient(
@@ -170,8 +211,10 @@ body {
     0 0 12px color-mix(in srgb, var(--music-wave-color) 44%, transparent),
     0 0 28px color-mix(in srgb, var(--music-wave-color) 34%, transparent);
   opacity: var(--music-wave-alpha);
+  filter: blur(var(--music-wave-blur, 0px));
   transform-origin: bottom center;
   animation: musicWaveJump 1.8s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes musicWaveJump {
@@ -202,6 +245,29 @@ body {
   .home-scroll-cue,
   .music-wave-bar {
     animation: none;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --glass-blur: 10px;
+    --chat-bubble-blur: 8px;
+  }
+
+  .music-wave-bg {
+    opacity: calc(0.24 + var(--music-wave-alpha));
+  }
+
+  .music-wave-bar {
+    width: 3px;
+    filter: blur(var(--music-wave-blur, 0px));
+    box-shadow:
+      0 0 8px color-mix(in srgb, var(--music-wave-color) 34%, transparent),
+      0 0 18px color-mix(in srgb, var(--music-wave-color) 22%, transparent);
+  }
+
+  .resource-immersive-track {
+    transition-duration: 360ms;
   }
 }
 

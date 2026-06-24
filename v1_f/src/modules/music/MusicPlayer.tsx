@@ -33,12 +33,18 @@ type MusicPlayerProps = {
   collapseBoundaryLeft?: number
   revealSignal?: number
   onRequestReanchor?: () => void
+  isMobile?: boolean
 }
 
 const PANEL_WIDTH = 420
 const PANEL_HEIGHT = 500
 const COLLAPSED_WIDTH = 116
 const COLLAPSED_HEIGHT = 48
+
+function fallbackPanelWidth() {
+  if (typeof window === 'undefined') return PANEL_WIDTH
+  return Math.min(PANEL_WIDTH, Math.max(280, window.innerWidth - 16))
+}
 
 function buildShuffleQueue(length: number, avoidFirst?: number, includeAvoided = true) {
   const queue = Array.from({ length }, (_, i) => i).filter((i) => includeAvoided || i !== avoidFirst)
@@ -72,7 +78,17 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, revealSignal = 0, onRequestReanchor }: MusicPlayerProps) {
+function playbackErrorMessage(error: unknown) {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError') return '浏览器拦截了自动播放，请再点一次播放。'
+    if (error.name === 'NotSupportedError') return '当前浏览器不支持这首歌的音频格式。'
+    if (error.name === 'AbortError') return '播放被浏览器中断，请稍后重试。'
+  }
+  if (error instanceof Error && error.message) return error.message
+  return '音乐播放失败，请刷新或换一首歌。'
+}
+
+export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, revealSignal = 0, onRequestReanchor, isMobile = false }: MusicPlayerProps) {
   const setOpen = useAppStore((s) => s.setMusicPlayerOpen)
   const setLyricsPanelEnabled = useAppStore((s) => s.setLyricsPanelEnabled)
   const setMusicNowPlaying = useAppStore((s) => s.setMusicNowPlaying)
@@ -80,6 +96,7 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
 
   const dragRef = useRef<HTMLDivElement | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const nextAudioRef = useRef<HTMLAudioElement | null>(null)
   const coverCache = useRef(new Map<string, string>())
   const collapseTimer = useRef<number | null>(null)
   const shuffleQueue = useRef<number[]>([])
@@ -91,9 +108,10 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   const pendingDragPos = useRef<{ x: number; y: number } | null>(null)
   const hasUserMoved = useRef(false)
 
-  const [pos, setPos] = useState({ x: collapseBoundaryLeft + 12, y: 24 })
+  const [pos, setPos] = useState(() => ({ x: collapseBoundaryLeft + 12, y: 24 }))
   const posRef = useRef(pos)
   const [playlists, setPlaylists] = useState<MusicPlaylistVo[]>([])
+  const [musicLoading, setMusicLoading] = useState(true)
   const [playlistId, setPlaylistId] = useState('')
   const [index, setIndex] = useState(0)
   const [mode, setMode] = useState<PlayMode>('shuffle')
@@ -108,10 +126,20 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   const [lyricsExpanded, setLyricsExpanded] = useState(false)
   const [lyrics, setLyrics] = useState<LyricLine[]>([])
 
+  const closePlayer = () => {
+    const audio = audioRef.current
+    if (audio) audio.pause()
+    const nextAudio = nextAudioRef.current
+    if (nextAudio) nextAudio.pause()
+    setPlaying(false)
+    setMusicNowPlaying({ playing: false })
+    setOpen(false)
+  }
+
   const clampPosition = (x: number, y: number) => {
     const margin = 0
     const rect = dragRef.current?.getBoundingClientRect()
-    const width = rect?.width || PANEL_WIDTH
+    const width = rect?.width || fallbackPanelWidth()
     const height = rect?.height || PANEL_HEIGHT
     return {
       x: Math.max(margin, Math.min(window.innerWidth - width - margin, x)),
@@ -132,7 +160,7 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   }
 
   const scheduleCollapse = () => {
-    if (pinned || dragging.current) return
+    if (isMobile || pinned || dragging.current) return
     clearCollapseTimer()
     collapseTimer.current = window.setTimeout(() => {
       setCollapsedEdge(pos.x + PANEL_WIDTH / 2 > window.innerWidth / 2 ? 'right' : 'left')
@@ -156,6 +184,14 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   useEffect(() => {
     if (revealSignal) reveal()
   }, [revealSignal])
+
+  useEffect(() => {
+    if (!isMobile) return
+    setCollapsed(false)
+    setPinned(true)
+    setLyricsExpanded(false)
+    setLyricsPanelEnabled(false)
+  }, [isMobile, setLyricsPanelEnabled])
 
   useEffect(() => {
     const onResize = () => {
@@ -218,9 +254,24 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   useEffect(() => clearCollapseTimer, [])
 
   useEffect(() => {
+    return () => {
+      const audio = audioRef.current
+      if (audio) audio.pause()
+      const nextAudio = nextAudioRef.current
+      if (nextAudio) {
+        nextAudio.pause()
+        nextAudio.removeAttribute('src')
+        nextAudio.load()
+      }
+      setMusicNowPlaying({ playing: false })
+    }
+  }, [setMusicNowPlaying])
+
+  useEffect(() => {
     let cancelled = false
     async function run() {
       try {
+        setMusicLoading(true)
         setError(null)
         const res = await getMusicPlaylists()
         if (cancelled) return
@@ -229,6 +280,8 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
         setPlaylistId((prev) => prev || list[0]?.id || '')
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        if (!cancelled) setMusicLoading(false)
       }
     }
     void run()
@@ -241,11 +294,45 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   const tracks = playlist?.tracks ?? []
   const track: MusicTrackVo | undefined = tracks[index]
   const trackUrl = resolveAssetUrl(track?.url)
+  const nextTrack = tracks.length > 1 ? tracks[(index + 1) % tracks.length] : undefined
+  const nextTrackUrl = resolveAssetUrl(nextTrack?.url)
   const localCover = resolveAssetUrl(track?.coverUrl)
   const coverUrl = localCover ?? remoteCover ?? undefined
   const lyricUrl = resolveAssetUrl(track?.lyricUrl)
   const currentLyricIndex = activeLyricIndex(lyrics, currentTime)
   const visibleLyrics = lyricWindow(lyrics, currentLyricIndex < 0 ? 0 : currentLyricIndex, 5)
+
+  const playAudio = async (audio: HTMLAudioElement) => {
+    try {
+      setError(null)
+      await audio.play()
+      setPlaying(true)
+    } catch (e) {
+      setPlaying(false)
+      setMusicNowPlaying({ playing: false })
+      setError(playbackErrorMessage(e))
+    }
+  }
+
+  useEffect(() => {
+    if (!trackUrl) return
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'audio'
+    link.href = trackUrl
+    link.setAttribute('fetchpriority', 'high')
+    document.head.appendChild(link)
+    return () => link.remove()
+  }, [trackUrl])
+
+  useEffect(() => {
+    if (!nextTrackUrl || nextTrackUrl === trackUrl) return
+    const audio = nextAudioRef.current ?? new Audio()
+    nextAudioRef.current = audio
+    audio.preload = 'metadata'
+    audio.src = nextTrackUrl
+    audio.load()
+  }, [nextTrackUrl, trackUrl])
 
   useEffect(() => {
     playHistory.current = []
@@ -262,13 +349,20 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !trackUrl) return
-    audio.src = trackUrl
-    audio.load()
+    try {
+      audio.src = trackUrl
+      audio.load()
+    } catch (e) {
+      setError(playbackErrorMessage(e))
+      setPlaying(false)
+      setMusicNowPlaying({ playing: false })
+      return
+    }
     setCurrentTime(0)
     setDuration(0)
     const shouldPlay = playing || autoPlayAfterTrackChange.current
     autoPlayAfterTrackChange.current = false
-    if (shouldPlay) void audio.play().catch(() => setPlaying(false))
+    if (shouldPlay) void playAudio(audio)
   }, [trackUrl])
 
   useEffect(() => {
@@ -376,8 +470,7 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
       setPlaying(false)
       return
     }
-    await audio.play()
-    setPlaying(true)
+    await playAudio(audio)
   }
 
   const cycleMode = () => {
@@ -418,7 +511,7 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
     const audio = audioRef.current
     if (mode === 'repeat-one' && audio) {
       audio.currentTime = 0
-      void audio.play()
+      void playAudio(audio)
       return
     }
     autoPlayAfterTrackChange.current = true
@@ -444,15 +537,22 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   const audio = (
     <audio
       ref={audioRef}
+      preload="auto"
       onPlay={() => setPlaying(true)}
       onPause={() => setPlaying(false)}
       onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
       onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime || 0)}
+      onError={(e) => {
+        const mediaError = e.currentTarget.error
+        setPlaying(false)
+        setMusicNowPlaying({ playing: false })
+        setError(mediaError?.message || '音频资源加载失败，请换一首或稍后再试。')
+      }}
       onEnded={onEnded}
     />
   )
 
-  if (collapsed && !pinned) {
+  if (!isMobile && collapsed && !pinned) {
     const top = Math.max(4, Math.min(window.innerHeight - COLLAPSED_HEIGHT - 4, pos.y + 42))
     const edgeStyle =
       collapsedEdge === 'right'
@@ -462,7 +562,7 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
     return (
       <div
         className={[
-          'music-player-panel music-player-collapsed-enter fixed z-50 overflow-hidden shadow-2xl',
+          'music-player-panel music-player-collapsed-enter fixed z-[60] overflow-hidden shadow-2xl',
           collapsedEdge === 'right' ? 'rounded-l-2xl border-r-0' : 'rounded-r-2xl border-l-0',
         ].join(' ')}
         style={edgeStyle}
@@ -486,16 +586,31 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
   return (
     <div
       ref={dragRef}
-      className="music-player-panel music-player-expanded-enter fixed z-50 w-[420px] rounded-2xl p-4 shadow-2xl"
-      style={{ left: pos.x, top: pos.y }}
-      onMouseEnter={reveal}
-      onMouseLeave={scheduleCollapse}
+      className={[
+        'music-player-panel music-player-expanded-enter fixed z-[60] w-[min(420px,calc(100vw-16px))] rounded-2xl p-4 shadow-2xl',
+        isMobile ? 'max-h-[calc(100dvh-76px)] overflow-y-auto' : '',
+      ].join(' ')}
+      style={isMobile ? { left: 8, right: 8, top: anchor?.top ?? 64 } : { left: pos.x, top: pos.y }}
+      onMouseEnter={isMobile ? undefined : reveal}
+      onMouseLeave={isMobile ? undefined : scheduleCollapse}
     >
       {audio}
 
-      <div onPointerDown={onPointerDownDragHandle} className="music-drag-handle -mx-4 -mt-4 mb-3 flex cursor-grab items-center justify-center rounded-t-2xl py-2 active:cursor-grabbing" title="拖动播放器">
-        <div className="h-1 w-10 rounded-full bg-[rgb(var(--fg))] opacity-45" />
-      </div>
+      {isMobile ? (
+        <div className="music-drag-handle -mx-4 -mt-4 mb-3 flex items-center justify-between rounded-t-2xl px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Music2 size={16} />
+            <span>Music</span>
+          </div>
+          <button type="button" onClick={closePlayer} className="music-icon-button h-8 w-8" aria-label="关闭播放器">
+            <X size={16} />
+          </button>
+        </div>
+      ) : (
+        <div onPointerDown={onPointerDownDragHandle} className="music-drag-handle -mx-4 -mt-4 mb-3 flex cursor-grab items-center justify-center rounded-t-2xl py-2 active:cursor-grabbing" title="拖动播放器">
+          <div className="h-1 w-10 rounded-full bg-[rgb(var(--fg))] opacity-45" />
+        </div>
+      )}
 
       <div className="mb-3 flex items-center gap-2">
         <ListMusic size={16} className="music-muted" />
@@ -511,31 +626,42 @@ export default function MusicPlayer({ anchor, collapseBoundaryLeft = 128, reveal
         <button type="button" onClick={cycleMode} className="music-icon-button" title={modeTitle(mode)} aria-label={modeTitle(mode)}>
           {modeIcon(mode)}
         </button>
-        <button type="button" onClick={() => setLyricsExpanded((v) => !v)} className="music-icon-button" title="播放器内歌词" aria-label="播放器内歌词">
-          <Captions size={16} />
-        </button>
-        <button type="button" onClick={() => setLyricsPanelEnabled(true)} className="music-icon-button" title="独立歌词窗口" aria-label="独立歌词窗口">
-          <Captions size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setPinned((v) => {
-              const next = !v
-              if (next) setCollapsed(false)
-              return next
-            })
-          }}
-          className="music-icon-button"
-          title={pinned ? '固定模式' : '自动收起模式'}
-          aria-label={pinned ? '固定模式' : '自动收起模式'}
-        >
-          {pinned ? <Pin size={16} /> : <PinOff size={16} />}
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="music-icon-button" aria-label="关闭播放器">
-          <X size={16} />
-        </button>
+        {!isMobile ? (
+          <>
+            <button type="button" onClick={() => setLyricsExpanded((v) => !v)} className="music-icon-button" title="播放器内歌词" aria-label="播放器内歌词">
+              <Captions size={16} />
+            </button>
+            <button type="button" onClick={() => setLyricsPanelEnabled(true)} className="music-icon-button" title="独立歌词窗口" aria-label="独立歌词窗口">
+              <Captions size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPinned((v) => {
+                  const next = !v
+                  if (next) setCollapsed(false)
+                  return next
+                })
+              }}
+              className="music-icon-button"
+              title={pinned ? '固定模式' : '自动收起模式'}
+              aria-label={pinned ? '固定模式' : '自动收起模式'}
+            >
+              {pinned ? <Pin size={16} /> : <PinOff size={16} />}
+            </button>
+            <button type="button" onClick={closePlayer} className="music-icon-button" aria-label="关闭播放器">
+              <X size={16} />
+            </button>
+          </>
+        ) : null}
       </div>
+
+      {musicLoading ? (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-white/[0.04] px-3 py-2 text-xs text-[rgb(var(--muted))]">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(var(--muted))]/25 border-t-[color:var(--led-color)]" />
+          正在读取音乐...
+        </div>
+      ) : null}
 
       <label className="relative mb-4 flex items-center gap-2">
         <Music2 size={16} className="music-muted shrink-0" />

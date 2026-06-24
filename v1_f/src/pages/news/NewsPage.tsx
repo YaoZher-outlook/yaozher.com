@@ -100,6 +100,23 @@ function NewsCard({
   )
 }
 
+function NewsLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="glass overflow-hidden rounded-3xl border border-white/10 bg-black/30">
+          <div className="h-64 animate-pulse bg-white/[0.06]" />
+          <div className="space-y-3 px-6 py-5">
+            <div className="h-4 w-24 animate-pulse rounded-full bg-white/[0.08]" />
+            <div className="h-6 w-2/3 animate-pulse rounded-md bg-white/[0.08]" />
+            <div className="h-4 w-full animate-pulse rounded-md bg-white/[0.06]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function NewsPage() {
   const [page, setPage] = useState(1)
   const [size] = useState(10)
@@ -213,11 +230,11 @@ export default function NewsPage() {
         </div>
       </div>
 
-      {loading ? <div className="text-sm text-white/60">Loading...</div> : null}
+      {loading ? <NewsLoadingSkeleton /> : null}
       {error ? <div className="text-sm text-red-300">Failed: {error}</div> : null}
 
       <div className="space-y-6">
-        {items.map((item) => (
+        {!loading && items.map((item) => (
           <div
             key={item.id}
             ref={(node) => {

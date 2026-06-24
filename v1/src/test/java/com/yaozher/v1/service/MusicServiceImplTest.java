@@ -68,6 +68,24 @@ class MusicServiceImplTest {
                 .isEqualTo("[00:01.00]I used to rule the world");
     }
 
+    @Test
+    void fuzzyMatchesDownloadedLyricWhenTitleHasVersionSuffix() throws Exception {
+        Path musicRoot = tempDir.resolve("MusicForWeb");
+        Path playlist = Files.createDirectories(musicRoot.resolve("Content"));
+        Path lyrics = Files.createDirectories(musicRoot.resolve("LRCs"));
+        Files.createFile(playlist.resolve("Mine-\u672a\u77e5\u4f5c\u8005.mp3"));
+        Files.writeString(
+                lyrics.resolve("ILLENIUM\u3001Phoebe Ryan - Mine (Illenium Remix)-62f761b28285db3cf094b2e8915c9d18-142875582-00000000.lrc"),
+                "[00:01.00]I could be your silver spring",
+                StandardCharsets.UTF_8
+        );
+
+        MusicService service = service(musicRoot, lyrics);
+
+        assertThat(service.findLyrics("Content/Mine-\u672a\u77e5\u4f5c\u8005.mp3"))
+                .isEqualTo("[00:01.00]I could be your silver spring");
+    }
+
     private MusicService service(Path musicRoot, Path lyrics) {
         AppProperties properties = new AppProperties();
         properties.setMusicDir(musicRoot.toString());

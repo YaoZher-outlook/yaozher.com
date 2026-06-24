@@ -90,6 +90,8 @@ public class AppProperties {
 
     private Cors cors = new Cors();
 
+    private Bandwidth bandwidth = new Bandwidth();
+
     /**
      * JWT 密钥（生产务必外置）
      */
@@ -121,5 +123,17 @@ public class AppProperties {
     @Data
     public static class Cors {
         private List<String> allowedOrigins = new ArrayList<>();
+    }
+
+    @Data
+    public static class Bandwidth {
+        private ResourceDownload resourceDownload = new ResourceDownload();
+    }
+
+    @Data
+    public static class ResourceDownload {
+        private Boolean enabled = true;
+        private Long bytesPerSecond = 1024L * 1024L;
+        private Integer maxConcurrentPerClient = 2;
     }
 }
