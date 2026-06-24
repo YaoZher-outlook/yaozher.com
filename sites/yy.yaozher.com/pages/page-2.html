@@ -6,5 +6,160 @@
   <title>Page 2</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="blank-page"></body>
+<body class="blank-page">
+  <h1>大整数乘法</h1>
+  <p>
+    #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define kMaxSize 1000
+#define ErrorCode -1 
+ 
+typedef struct BigIntNode *BigInt;
+struct BigIntNode {
+	int digits[kMaxSize]; /* 各位数字从低位到高位顺次存储 */
+	int length; /* 位数 */
+	int sign;   /* 正负 */
+};
+
+
+BigInt ReadBigInt();
+BigInt BigIntMultiply( BigInt a, BigInt b );
+
+int main(void)
+{
+	BigInt a, b, c;
+	int i;
+	
+	a = ReadBigInt();
+	b = ReadBigInt();
+	c = BigIntMultiply( a, b );
+	if (c->length == 0) {
+		printf("0");
+	}
+	if (c->sign == -1) {
+		printf("-");
+	}
+	for (i=c->length-1; i>=0; i--) {
+		printf("%d", c->digits[i]);
+	}
+	 
+	return 0;
+}
+
+/* 算法2-11：大整数相乘运算  BigIntMultiply(a, b) */ 
+BigInt BigIntMultiply( BigInt a, BigInt b )
+{
+	BigInt result = (BigInt)malloc(sizeof(struct BigIntNode));
+	if (result == NULL) return NULL;
+	
+	// 初始化结果数组
+	memset(result->digits, 0, sizeof(result->digits));
+	
+	// 处理特殊情况：任一数为0
+	if (a->length == 0 || b->length == 0 || 
+	    (a->length == 1 && a->digits[0] == 0) || 
+	    (b->length == 1 && b->digits[0] == 0)) {
+		result->length = 0;
+		result->sign = 1;
+		return result;
+	}
+	
+	// 计算乘积的符号
+	result->sign = a->sign * b->sign;
+	
+	// 大整数乘法核心算法
+	// 使用逐位相乘并累加的方法
+	for (int i = 0; i < a->length; i++) {
+		int carry = 0;
+		for (int j = 0; j < b->length; j++) {
+			int product = a->digits[i] * b->digits[j];
+			int sum = result->digits[i + j] + product + carry;
+			result->digits[i + j] = sum % 10;
+			carry = sum / 10;
+		}
+		// 处理进位
+		if (carry > 0) {
+			result->digits[i + b->length] += carry;
+		}
+	}
+	
+	// 处理剩余的进位
+	int carry = 0;
+	for (int i = 0; i < kMaxSize; i++) {
+		int sum = result->digits[i] + carry;
+		result->digits[i] = sum % 10;
+		carry = sum / 10;
+		if (carry == 0 && i >= a->length + b->length) break;
+	}
+	
+	// 计算结果的位数
+	result->length = a->length + b->length;
+	while (result->length > 0 && result->digits[result->length - 1] == 0) {
+		result->length--;
+	}
+	
+	// 如果结果为0，设置符号为正
+	if (result->length == 0) {
+		result->sign = 1;
+	}
+	
+	return result;
+}
+/* 算法2-11 结束 */ 
+
+/* 从键盘读取大整数*/
+BigInt ReadBigInt()
+{
+	char str[kMaxSize + 10];
+	scanf("%s", str);
+	
+	BigInt num = (BigInt)malloc(sizeof(struct BigIntNode));
+	if (num == NULL) return NULL;
+	
+	memset(num->digits, 0, sizeof(num->digits));
+	
+	int len = strlen(str);
+	int start = 0;
+	
+	// 处理符号
+	if (str[0] == '-') {
+		num->sign = -1;
+		start = 1;
+	} else if (str[0] == '+') {
+		num->sign = 1;
+		start = 1;
+	} else {
+		num->sign = 1;
+		start = 0;
+	}
+	
+	// 处理数字部分
+	int digitCount = 0;
+	for (int i = len - 1; i >= start; i--) {
+		if (str[i] >= '0' && str[i] <= '9') {
+			num->digits[digitCount] = str[i] - '0';
+			digitCount++;
+		}
+	}
+	
+	// 处理前导零
+	while (digitCount > 1 && num->digits[digitCount - 1] == 0) {
+		digitCount--;
+	}
+	
+	num->length = digitCount;
+	
+	// 如果数字部分全为0，则长度为0
+	if (num->length == 1 && num->digits[0] == 0) {
+		num->length = 0;
+		num->sign = 1;
+	}
+	
+	return num;
+}
+/*读取结束*/
+  </p>
+</body>
 </html>
