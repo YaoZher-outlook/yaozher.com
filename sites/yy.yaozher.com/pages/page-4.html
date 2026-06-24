@@ -6,5 +6,55 @@
   <title>Page 4</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="blank-page"></body>
+<body class="blank-page">
+  <h1>
+DNA病毒检测
+  </h1>
+  <p>
+ import java.util.Scanner;// 引入Scanner用于输入处理
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (!sc.hasNextInt()) return; // 输入非空判断
+
+        int n = sc.nextInt();
+        while (n-- > 0) {
+            String human = sc.next();
+            String virus = sc.next();
+            if (match(human, virus)) {
+                System.out.println("Yes"); // 成功匹配情况
+            } else {
+                System.out.println("No"); // 匹配失败情况
+            }
+        }
+    }
+
+    /**
+     * 判断人类DNA序列中是否包含病毒环状DNA序列的任意排列
+     * 原理：将病毒序列拼接自身（virus + virus），生成所有可能的环状排列子串（长度为原病毒序列长度）
+     * 若人类DNA包含其中任意一个子串，则返回true
+     * @param human 人类DNA序列
+     * @param virus 病毒DNA序列（环状）
+     * @return 是否包含病毒序列
+     */
+    private static boolean match(String human, String virus) {
+        // 边界条件判断：任一序列为空或病毒长度大于人类序列时直接返回false
+        if (human.length() == 0 || virus.length() == 0 || virus.length() > human.length()) {
+            return false;
+        }
+
+        String fullVirus = virus + virus; // 拼接病毒序列，用于生成环状排列
+        // 遍历所有可能的环状起始位置，截取原长度子串进行匹配
+        for (int i = 0; i < virus.length(); i++) {
+            String partVirus = fullVirus.substring(i, i + virus.length()); // 截取长度为原病毒长度的子串
+            if (human.contains(partVirus)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+  </p>
+</body>
 </html>
